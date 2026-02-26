@@ -1,31 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
-const GameScene = dynamic(() => import('@/components/game/GameScene'), {
+const Game = dynamic(() => import('@/components/game/Game'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-screen bg-[#000811] flex flex-col items-center justify-center">
-      <div className="text-green-400 text-xl animate-pulse" style={{ fontFamily: "'Courier New', monospace", textShadow: '0 0 10px rgba(0,255,100,0.5)' }}>
-        LOADING PARTICLE WORLD...
+    <div className="w-full h-screen bg-[#010102] flex items-center justify-center">
+      <div className="text-white/20 text-[11px] tracking-[0.4em] uppercase animate-pulse">
+        Loading...
       </div>
-      <div className="mt-4 w-48 h-1 bg-green-900/30 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-green-500 rounded-full"
-          style={{
-            animation: 'loading 1.5s ease-in-out infinite',
-            width: '30%',
-          }}
-        />
-      </div>
-      <style jsx>{`
-        @keyframes loading {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(400%); }
-        }
-      `}</style>
     </div>
   ),
 });
@@ -33,29 +18,13 @@ const GameScene = dynamic(() => import('@/components/game/GameScene'), {
 export default function GamePage() {
   const router = useRouter();
 
-  // ESC key to exit game
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        router.push('/');
-      }
+      if (e.key === 'Escape') router.push('/');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [router]);
 
-  return (
-    <div className="relative w-full h-screen">
-      <GameScene />
-
-      {/* Back button */}
-      <button
-        onClick={() => router.push('/')}
-        className="absolute top-4 left-4 z-50 text-green-400/30 hover:text-green-400/70 transition-colors text-xs tracking-widest uppercase"
-        style={{ fontFamily: "'Courier New', monospace" }}
-      >
-        [ESC] Exit
-      </button>
-    </div>
-  );
+  return <Game />;
 }
