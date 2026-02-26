@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'PARTICLE FLIGHT',
-  description: 'Fly through a world made of particles',
+  title: 'Monochrome Terrain',
+  description: 'High-density monochrome particle world',
 }
 
 export default function RootLayout({

@@ -1,28 +1,26 @@
-import Link from 'next/link';
+'use client';
+
+import dynamic from 'next/dynamic';
+
+const MonochromeTerrain = dynamic(
+  () => import('@/components/MonochromeTerrain'),
+  { ssr: false }
+);
 
 export default function Home() {
   return (
-    <div className="h-screen bg-[#010102] flex flex-col items-center justify-center">
-      <h1 className="text-white/20 text-[11px] tracking-[0.5em] uppercase mb-16">
-        Particle Flight
-      </h1>
+    <div className="relative w-full h-screen bg-[#010102]">
+      <MonochromeTerrain />
 
-      <Link
-        href="/game"
-        className="group relative px-12 py-4 border border-white/10 hover:border-white/25 transition-all duration-500"
-      >
-        <span className="text-white/40 group-hover:text-white/70 text-xs tracking-[0.3em] uppercase transition-colors duration-500">
-          Fly
-        </span>
-      </Link>
-
-      <p className="text-white/10 text-[10px] tracking-wider mt-16">
-        2 Runways &middot; Monochrome World &middot; 250k Particles
-      </p>
-
-      <div className="absolute bottom-6 text-white/[0.08] text-[9px] tracking-wider">
-        W/S Throttle &middot; Arrows Pitch/Roll &middot; A/D Yaw &middot;
-        Space Brake
+      <div className="absolute top-5 left-5 pointer-events-none z-10">
+        <h1 className="text-white/40 text-xs font-medium tracking-[0.3em] uppercase">
+          Monochrome Terrain
+        </h1>
+        <p className="text-white/20 text-[10px] mt-2 leading-relaxed">
+          490,000 Particles &bull; High-Density Grid
+          <br />
+          Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
+        </p>
       </div>
     </div>
   );
