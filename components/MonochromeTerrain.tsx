@@ -32,7 +32,7 @@ export default function MonochromeTerrain() {
     // Camera
     const camera = new THREE.PerspectiveCamera(
       50,
-      el.clientWidth / el.clientHeight,
+      window.innerWidth / window.innerHeight,
       0.1,
       2000
     );
@@ -40,7 +40,7 @@ export default function MonochromeTerrain() {
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(el.clientWidth, el.clientHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(renderer.domElement);
 
@@ -120,9 +120,9 @@ export default function MonochromeTerrain() {
 
     // Resize
     const onResize = () => {
-      camera.aspect = el.clientWidth / el.clientHeight;
+      camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(el.clientWidth, el.clientHeight);
+      renderer.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', onResize);
 
@@ -146,5 +146,5 @@ export default function MonochromeTerrain() {
     };
   }, []);
 
-  return <div ref={mountRef} className="w-full h-full" />;
+  return <div ref={mountRef} className="absolute inset-0" />;
 }
