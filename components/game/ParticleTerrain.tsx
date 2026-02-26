@@ -3,8 +3,16 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { getTerrainHeight, getTerrainColor } from '@/lib/terrain';
+import { getTerrainHeight, getTerrainColor, getVisualHeight } from '@/lib/terrain';
 import { GameSettings, defaultSettings } from '@/lib/settings';
+
+// Deterministic hash for jitter (avoids sin-based precision issues)
+function hashJitter(x: number, z: number, seed: number): number {
+  let h = ((x * 374761393 + z * 668265263 + seed * 1274126177) | 0);
+  h = (((h >> 13) ^ h) * 1274126177) | 0;
+  h = ((h >> 16) ^ h) | 0;
+  return (h & 0xffff) / 0xffff; // 0 to 1
+}
 
 interface ParticleTerrainProps {
   playerPosition: React.MutableRefObject<{ x: number; y: number; z: number }>;
@@ -34,7 +42,7 @@ export default function ParticleTerrain({
     for (let i = 0; i < TOTAL_COUNT; i++) {
       phases[i] = Math.random() * Math.PI * 2;
       sizes[i] = i < TERRAIN_COUNT ? 0.6 + Math.random() * 0.8 : 0.3 + Math.random() * 0.4;
-      positions[i * 3 + 1] = -10000; // Start hidden
+      positions[i * 3 + 1] = -10000;
     }
 
     const geo = new THREE.BufferGeometry();
@@ -69,8 +77,10 @@ export default function ParticleTerrain({
             return;
           }
 
-          pos.y += sin(time * 0.6 + aPhase) * 1.2;
-          pos.x += sin(time * 0.3 + aPhase * 1.7) * 0.4;
+          // Animate: gentle float + shimmer
+          pos.y += sin(time * 0.5 + aPhase) * 1.0;
+          pos.x += sin(time * 0.25 + aPhase * 1.7) * 0.3;
+          pos.z += cos(time * 0.2 + aPhase * 2.3) * 0.3;
 
           vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
           float dist = -mvPosition.z;
@@ -78,7 +88,7 @@ export default function ParticleTerrain({
           gl_PointSize = clamp(gl_PointSize, 1.0, 30.0);
           gl_Position = projectionMatrix * mvPosition;
 
-          vAlpha = smoothstep(${RENDER_DIST.toFixed(1)}, ${(RENDER_DIST * 0.6).toFixed(1)}, dist);
+          vAlpha = smoothstep(${RENDER_DIST.toFixed(1)}, ${(RENDER_DIST * 0.55).toFixed(1)}, dist);
         }
       `,
       fragmentShader: /* glsl */ `
@@ -89,9 +99,12 @@ export default function ParticleTerrain({
           float dist = length(gl_PointCoord - vec2(0.5));
           if (dist > 0.5) discard;
 
+          // Soft glow with bright center
           float glow = 1.0 - smoothstep(0.0, 0.5, dist);
-          float alpha = glow * glow * vAlpha * 0.9;
-          gl_FragColor = vec4(vColor * (1.0 + glow * 0.5), alpha);
+          float core = 1.0 - smoothstep(0.0, 0.15, dist);
+          float alpha = (glow * glow * 0.7 + core * 0.3) * vAlpha;
+          vec3 col = vColor * (1.0 + core * 0.8);
+          gl_FragColor = vec4(col, alpha);
         }
       `,
       vertexColors: true,
@@ -124,17 +137,18 @@ export default function ParticleTerrain({
         const dz = wz - centerZ;
         if (dx * dx + dz * dz > RENDER_DIST * RENDER_DIST) continue;
 
-        // Jitter to break grid pattern
-        const jx = ((Math.sin(wx * 127.1 + wz * 311.7) * 43758.5453) % 1) * GRID_SPACING * 0.3;
-        const jz = ((Math.sin(wx * 269.5 + wz * 183.3) * 43758.5453) % 1) * GRID_SPACING * 0.3;
+        // Deterministic jitter centered on grid cell
+        const jx = (hashJitter(wx, wz, 1) - 0.5) * GRID_SPACING * 0.6;
+        const jz = (hashJitter(wx, wz, 2) - 0.5) * GRID_SPACING * 0.6;
 
         const sampleX = wx + jx;
         const sampleZ = wz + jz;
         const height = getTerrainHeight(sampleX, sampleZ);
+        const visualY = getVisualHeight(sampleX, sampleZ);
         const color = getTerrainColor(sampleX, sampleZ, height);
 
         positions[idx * 3] = sampleX;
-        positions[idx * 3 + 1] = height;
+        positions[idx * 3 + 1] = visualY;
         positions[idx * 3 + 2] = sampleZ;
 
         colors[idx * 3] = color[0];
@@ -149,17 +163,18 @@ export default function ParticleTerrain({
       positions[i * 3 + 1] = -10000;
     }
 
-    // Atmosphere particles
+    // Atmosphere particles - scattered dust/motes in the air
     for (let i = 0; i < ATMO_COUNT; i++) {
       const aidx = TERRAIN_COUNT + i;
       const angle = (i / ATMO_COUNT) * Math.PI * 2 + i * 1.618;
-      const dist = (i / ATMO_COUNT) * RENDER_DIST * 0.8;
+      const dist = Math.sqrt(i / ATMO_COUNT) * RENDER_DIST * 0.85;
       positions[aidx * 3] = centerX + Math.cos(angle) * dist;
-      positions[aidx * 3 + 1] = 20 + (i * 7.13) % 150;
+      positions[aidx * 3 + 1] = 15 + (i * 7.13) % 180;
       positions[aidx * 3 + 2] = centerZ + Math.sin(angle) * dist;
-      colors[aidx * 3] = 0.4;
-      colors[aidx * 3 + 1] = 0.4;
-      colors[aidx * 3 + 2] = 0.5;
+      // Subtle blue-grey atmospheric color
+      colors[aidx * 3] = 0.3 + (i % 5) * 0.04;
+      colors[aidx * 3 + 1] = 0.35 + (i % 7) * 0.03;
+      colors[aidx * 3 + 2] = 0.45 + (i % 3) * 0.05;
     }
 
     posAttr.needsUpdate = true;

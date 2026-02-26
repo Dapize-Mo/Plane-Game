@@ -137,7 +137,7 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* Float animation keyframes */}
+      {/* Animations */}
       <style jsx>{`
         @keyframes float {
           from {
@@ -146,6 +146,22 @@ export default function HomePage() {
           to {
             transform: translateY(-8px) scale(1.3);
           }
+        }
+      `}</style>
+
+      {/* Full-screen flash overlay during zoom transition */}
+      {zooming && (
+        <div
+          className="fixed inset-0 z-50 bg-[#000811] pointer-events-none"
+          style={{
+            animation: 'fadeIn 0.6s ease-in 0.3s forwards',
+            opacity: 0,
+          }}
+        />
+      )}
+      <style jsx>{`
+        @keyframes fadeIn {
+          to { opacity: 1; }
         }
       `}</style>
     </div>

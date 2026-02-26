@@ -51,7 +51,14 @@ export function getTerrainHeight(x: number, z: number): number {
   return height;
 }
 
+// Get the visual height for rendering (water at sea level)
+export function getVisualHeight(x: number, z: number): number {
+  const h = getTerrainHeight(x, z);
+  return h < seaLevel ? seaLevel - 0.5 : h;
+}
+
 // Get terrain color as [r, g, b] based on height and features
+// Colors are vivid for additive blending on dark background
 export function getTerrainColor(
   x: number,
   z: number,
@@ -59,41 +66,41 @@ export function getTerrainColor(
 ): [number, number, number] {
   // Check for runway
   if (isOnRunway(x, z)) {
-    return [0.5, 0.5, 0.55]; // Grey runway
+    return [0.6, 0.6, 0.65]; // Bright grey runway
   }
 
   // Check for runway edge lights
   if (isRunwayEdge(x, z)) {
-    return [1.0, 0.8, 0.2]; // Amber lights
+    return [1.0, 0.85, 0.2]; // Amber lights
   }
 
-  // Water
+  // Water - render at sea level with vivid blue
   if (height < seaLevel) {
     const depth = Math.min(1, (seaLevel - height) / 30);
     return [
-      0.05 + depth * 0.05,
-      0.2 + (1 - depth) * 0.2,
-      0.6 + (1 - depth) * 0.4,
+      0.02 + (1 - depth) * 0.08,
+      0.15 + (1 - depth) * 0.25,
+      0.5 + (1 - depth) * 0.5,
     ];
   }
 
-  // Land - gradient from low green to mountain grey
+  // Land - vivid gradient from green to mountain grey
   const normalizedHeight = Math.min(1, Math.max(0, height / terrainAmplitude));
 
   if (normalizedHeight > 0.7) {
-    // Mountain/snow
+    // Mountain/snow - bright white-grey
     const t = (normalizedHeight - 0.7) / 0.3;
-    return [0.4 + t * 0.3, 0.5 + t * 0.3, 0.4 + t * 0.4];
+    return [0.45 + t * 0.35, 0.55 + t * 0.3, 0.45 + t * 0.4];
   }
 
   if (normalizedHeight > 0.4) {
-    // Forest/highland
+    // Forest/highland - darker green
     const t = (normalizedHeight - 0.4) / 0.3;
-    return [0.05 + t * 0.15, 0.5 - t * 0.1, 0.15 + t * 0.1];
+    return [0.05 + t * 0.2, 0.55 - t * 0.1, 0.12 + t * 0.15];
   }
 
-  // Lowland grass
-  return [0.1, 0.65, 0.25];
+  // Lowland grass - vivid green
+  return [0.08, 0.7, 0.22];
 }
 
 // Quick check if a position is water

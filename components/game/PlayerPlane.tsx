@@ -188,6 +188,14 @@ export default function PlayerPlane({
     flightData.current.fuel = s.fuel;
     flightData.current.fuelEmpty = s.fuelEmpty;
 
+    // Update camera far plane dynamically for space view toggle
+    const perspCam = camera as THREE.PerspectiveCamera;
+    const targetFar = spaceView ? 20000 : (settings.fogDistance || 600) + 200;
+    if (Math.abs(perspCam.far - targetFar) > 1) {
+      perspCam.far = targetFar;
+      perspCam.updateProjectionMatrix();
+    }
+
     if (!spaceView) {
       const quaternion = new THREE.Quaternion().setFromEuler(euler);
       const camDist = settings.cameraDistance || 22;

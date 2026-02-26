@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 
@@ -31,6 +32,17 @@ const GameScene = dynamic(() => import('@/components/game/GameScene'), {
 
 export default function GamePage() {
   const router = useRouter();
+
+  // ESC key to exit game
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        router.push('/');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [router]);
 
   return (
     <div className="relative w-full h-screen">

@@ -5,6 +5,7 @@ import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import ParticleTerrain from './ParticleTerrain';
 import PlayerPlane from './PlayerPlane';
+import EngineTrail from './EngineTrail';
 import SpaceView from './SpaceView';
 import FlightHUD from './FlightHUD';
 import { loadSettings, GameSettings, defaultSettings } from '@/lib/settings';
@@ -101,6 +102,9 @@ export default function GameScene() {
             settings={settings}
             spaceView={spaceView}
           />
+          {!spaceView && (
+            <EngineTrail playerPosition={playerPosition} flightData={flightData} />
+          )}
         </Canvas>
       </Suspense>
       <FlightHUD flightData={flightData} settings={settings} />

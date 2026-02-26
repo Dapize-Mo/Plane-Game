@@ -108,7 +108,7 @@ export function updateFlightPhysics(
   }
 
   // --- Throttle ---
-  const throttleRate = 0.4;
+  const throttleRate = 0.5; // Faster throttle response
   if (!next.fuelEmpty) {
     if (input.throttleUp || input.analogThrottle > 0.1) {
       const amount = input.analogThrottle > 0.1 ? input.analogThrottle : 1;
