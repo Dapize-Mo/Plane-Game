@@ -23,9 +23,7 @@ export default function ParticleTerrain({
   playerPosition,
   settings = defaultSettings,
 }: ParticleTerrainProps) {
-  const TERRAIN_COUNT = 30000;
-  const ATMO_COUNT = 3000;
-  const TOTAL_COUNT = TERRAIN_COUNT + ATMO_COUNT;
+  const TERRAIN_COUNT = 35000;
   const GRID_SPACING = settings.particleSpacing;
   const RENDER_DIST = settings.renderDistance;
 
@@ -34,87 +32,85 @@ export default function ParticleTerrain({
   const lastUpdateZ = useRef(Infinity);
 
   const { geometry, material } = useMemo(() => {
-    const positions = new Float32Array(TOTAL_COUNT * 3);
-    const colors = new Float32Array(TOTAL_COUNT * 3);
-    const sizes = new Float32Array(TOTAL_COUNT);
-    const phases = new Float32Array(TOTAL_COUNT);
+    const positions = new Float32Array(TERRAIN_COUNT * 3);
+    const colors = new Float32Array(TERRAIN_COUNT * 3);
+    const sizes = new Float32Array(TERRAIN_COUNT);
 
-    for (let i = 0; i < TOTAL_COUNT; i++) {
-      phases[i] = Math.random() * Math.PI * 2;
-      sizes[i] = i < TERRAIN_COUNT ? 0.6 + Math.random() * 0.8 : 0.3 + Math.random() * 0.4;
-      positions[i * 3 + 1] = -10000;
+    for (let i = 0; i < TERRAIN_COUNT; i++) {
+      sizes[i] = 0.7 + hashJitter(i, i * 3, 99) * 0.6;
+      positions[i * 3 + 1] = -10000; // hidden until terrain update
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geo.setAttribute('aSize', new THREE.Float32BufferAttribute(sizes, 1));
-    geo.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1));
 
-    const pSize = settings.particleSize || 4.0;
+    const pSize = settings.particleSize || 5.0;
 
     const mat = new THREE.ShaderMaterial({
       uniforms: {
-        time: { value: 0 },
         baseSize: { value: pSize },
+        fogNear: { value: RENDER_DIST * 0.3 },
+        fogFar: { value: RENDER_DIST * 0.95 },
       },
       vertexShader: /* glsl */ `
         attribute float aSize;
-        attribute float aPhase;
         varying vec3 vColor;
-        varying float vAlpha;
-        uniform float time;
+        varying float vFog;
         uniform float baseSize;
+        uniform float fogNear;
+        uniform float fogFar;
 
         void main() {
           vColor = color;
           vec3 pos = position;
 
+          // Hide particles placed at y=-10000
           if (pos.y < -9000.0) {
             gl_Position = vec4(0.0, 0.0, -2.0, 1.0);
             gl_PointSize = 0.0;
-            vAlpha = 0.0;
+            vFog = 0.0;
             return;
           }
 
-          // Animate: gentle float + shimmer
-          pos.y += sin(time * 0.5 + aPhase) * 1.0;
-          pos.x += sin(time * 0.25 + aPhase * 1.7) * 0.3;
-          pos.z += cos(time * 0.2 + aPhase * 2.3) * 0.3;
-
           vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
           float dist = -mvPosition.z;
-          gl_PointSize = baseSize * aSize * (250.0 / max(dist, 1.0));
-          gl_PointSize = clamp(gl_PointSize, 1.0, 30.0);
+
+          // Scale point size with distance
+          gl_PointSize = baseSize * aSize * (200.0 / max(dist, 1.0));
+          gl_PointSize = clamp(gl_PointSize, 1.5, 25.0);
           gl_Position = projectionMatrix * mvPosition;
 
-          vAlpha = smoothstep(${RENDER_DIST.toFixed(1)}, ${(RENDER_DIST * 0.55).toFixed(1)}, dist);
+          // Distance fog factor (1 = fully visible, 0 = faded out)
+          vFog = 1.0 - smoothstep(fogNear, fogFar, dist);
         }
       `,
       fragmentShader: /* glsl */ `
         varying vec3 vColor;
-        varying float vAlpha;
+        varying float vFog;
 
         void main() {
+          // Circular dot with slight edge softening
           float dist = length(gl_PointCoord - vec2(0.5));
           if (dist > 0.5) discard;
 
-          // Soft glow with bright center
-          float glow = 1.0 - smoothstep(0.0, 0.5, dist);
-          float core = 1.0 - smoothstep(0.0, 0.15, dist);
-          float alpha = (glow * glow * 0.7 + core * 0.3) * vAlpha;
-          vec3 col = vColor * (1.0 + core * 0.8);
-          gl_FragColor = vec4(col, alpha);
+          // Slight edge fade for anti-aliasing
+          float alpha = 1.0 - smoothstep(0.35, 0.5, dist);
+          alpha *= vFog;
+
+          gl_FragColor = vec4(vColor, alpha);
         }
       `,
       vertexColors: true,
       transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      depthWrite: true,
+      depthTest: true,
+      blending: THREE.NormalBlending,
     });
 
     return { geometry: geo, material: mat };
-  }, [TOTAL_COUNT, TERRAIN_COUNT, GRID_SPACING, RENDER_DIST, settings.particleSize]);
+  }, [TERRAIN_COUNT, GRID_SPACING, RENDER_DIST, settings.particleSize]);
 
   const updateTerrain = (centerX: number, centerZ: number) => {
     const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -159,22 +155,9 @@ export default function ParticleTerrain({
       }
     }
 
+    // Hide unused particle slots
     for (let i = idx; i < TERRAIN_COUNT; i++) {
       positions[i * 3 + 1] = -10000;
-    }
-
-    // Atmosphere particles - scattered dust/motes in the air
-    for (let i = 0; i < ATMO_COUNT; i++) {
-      const aidx = TERRAIN_COUNT + i;
-      const angle = (i / ATMO_COUNT) * Math.PI * 2 + i * 1.618;
-      const dist = Math.sqrt(i / ATMO_COUNT) * RENDER_DIST * 0.85;
-      positions[aidx * 3] = centerX + Math.cos(angle) * dist;
-      positions[aidx * 3 + 1] = 15 + (i * 7.13) % 180;
-      positions[aidx * 3 + 2] = centerZ + Math.sin(angle) * dist;
-      // Subtle blue-grey atmospheric color
-      colors[aidx * 3] = 0.3 + (i % 5) * 0.04;
-      colors[aidx * 3 + 1] = 0.35 + (i % 7) * 0.03;
-      colors[aidx * 3 + 2] = 0.45 + (i % 3) * 0.05;
     }
 
     posAttr.needsUpdate = true;
@@ -188,9 +171,7 @@ export default function ParticleTerrain({
     lastUpdateZ.current = pos.z;
   }, []);
 
-  useFrame((state) => {
-    material.uniforms.time.value = state.clock.elapsedTime;
-
+  useFrame(() => {
     const pos = playerPosition.current;
     const dx = pos.x - lastUpdateX.current;
     const dz = pos.z - lastUpdateZ.current;

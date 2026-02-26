@@ -205,7 +205,7 @@ export default function PlayerPlane({
 
     // Update camera far plane dynamically for space view toggle
     const perspCam = camera as THREE.PerspectiveCamera;
-    const targetFar = spaceView ? 20000 : (settings.fogDistance || 600) + 200;
+    const targetFar = spaceView ? 20000 : (settings.renderDistance || 500) + 200;
     if (Math.abs(perspCam.far - targetFar) > 1) {
       perspCam.far = targetFar;
       perspCam.updateProjectionMatrix();
@@ -242,55 +242,36 @@ export default function PlayerPlane({
 
   return (
     <group ref={groupRef}>
-      {/* Fuselage */}
+      {/* Fuselage - white so it stands out against dark bg */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.35, 0.55, 5, 8]} />
-        <meshStandardMaterial
-          color="#ffffff"
-          emissive="#888888"
-          emissiveIntensity={0.5}
-          metalness={0.4}
-          roughness={0.3}
-        />
+        <meshBasicMaterial color="#cccccc" />
       </mesh>
       {/* Nose cone */}
       <mesh position={[0, 0, -3]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.35, 1.2, 8]} />
-        <meshStandardMaterial color="#eeeeee" emissive="#777777" emissiveIntensity={0.4} metalness={0.5} roughness={0.3} />
+        <meshBasicMaterial color="#dddddd" />
       </mesh>
       {/* Main wings */}
       <mesh position={[0, -0.1, 0.2]}>
-        <boxGeometry args={[10, 0.1, 1.5]} />
-        <meshStandardMaterial color="#ffffff" emissive="#666666" emissiveIntensity={0.4} metalness={0.3} roughness={0.4} />
+        <boxGeometry args={[10, 0.12, 1.5]} />
+        <meshBasicMaterial color="#bbbbbb" />
       </mesh>
       {/* Horizontal stabilizer */}
       <mesh position={[0, 0.15, 2.5]}>
         <boxGeometry args={[4, 0.08, 0.8]} />
-        <meshStandardMaterial color="#eeeeee" emissive="#666666" emissiveIntensity={0.3} />
+        <meshBasicMaterial color="#bbbbbb" />
       </mesh>
       {/* Vertical stabilizer */}
       <mesh position={[0, 0.8, 2.3]}>
         <boxGeometry args={[0.08, 1.5, 0.9]} />
-        <meshStandardMaterial color="#eeeeee" emissive="#666666" emissiveIntensity={0.3} />
+        <meshBasicMaterial color="#bbbbbb" />
       </mesh>
-      {/* Engine glow - bright so the plane is visible */}
-      <pointLight position={[0, 0, 3]} color="#ff6600" intensity={3} distance={12} />
-      {/* Headlight - illuminates terrain in front */}
-      <spotLight
-        position={[0, -0.3, -3.5]}
-        target-position={[0, -5, -30]}
-        angle={0.4}
-        penumbra={0.5}
-        intensity={5}
-        distance={80}
-        color="#ffffff"
-      />
-      {/* Navigation lights */}
-      <pointLight position={[-5, -0.1, 0.2]} color="#ff0000" intensity={1} distance={8} />
-      <pointLight position={[5, -0.1, 0.2]} color="#00ff00" intensity={1} distance={8} />
-      <pointLight position={[0, 0.5, -3.5]} color="#ffffff" intensity={2} distance={15} />
-      {/* Belly light so plane is visible from below/behind */}
-      <pointLight position={[0, -0.5, 0]} color="#ffffff" intensity={1.5} distance={10} />
+      {/* Wing tip lights */}
+      <pointLight position={[-5, -0.1, 0.2]} color="#ff0000" intensity={1} distance={6} />
+      <pointLight position={[5, -0.1, 0.2]} color="#00ff00" intensity={1} distance={6} />
+      {/* Nose light */}
+      <pointLight position={[0, 0, -3.5]} color="#ffffff" intensity={1} distance={10} />
     </group>
   );
 }

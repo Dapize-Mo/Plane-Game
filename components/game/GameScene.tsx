@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import * as THREE from 'three';
+import * as THREE from 'three';  // used for camera calc
 import ParticleTerrain from './ParticleTerrain';
 import PlayerPlane from './PlayerPlane';
 import EngineTrail from './EngineTrail';
@@ -81,8 +81,7 @@ export default function GameScene() {
     fuelEmpty: false,
   });
 
-  const fogFar = settings.fogDistance || 600;
-  const fogNear = fogFar * 0.17;
+  const renderFar = (settings.renderDistance || 500) + 200;
 
   return (
     <div className="w-full h-screen relative bg-[#000811]">
@@ -91,7 +90,7 @@ export default function GameScene() {
           camera={{
             fov: 65,
             near: 0.5,
-            far: fogFar + 200,
+            far: renderFar,
             position: initialCamPos,
           }}
           gl={{
@@ -103,9 +102,6 @@ export default function GameScene() {
           dpr={[1, 1.5]}
         >
           <color attach="background" args={[0x000811]} />
-          {!spaceView && (
-            <fog attach="fog" args={[new THREE.Color(0x000811), fogNear, fogFar]} />
-          )}
           <SceneLighting />
           {spaceView ? (
             <SpaceView settings={settings} playerPosition={playerPosition} />
