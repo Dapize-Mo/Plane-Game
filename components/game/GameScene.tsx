@@ -9,6 +9,7 @@ import EngineTrail from './EngineTrail';
 import SpaceView from './SpaceView';
 import FlightHUD from './FlightHUD';
 import { loadSettings, GameSettings, defaultSettings } from '@/lib/settings';
+import { airports, getSpawnPosition } from '@/lib/airports';
 
 function LoadingScreen() {
   return (
@@ -26,12 +27,26 @@ function LoadingScreen() {
 function SceneLighting() {
   return (
     <>
-      <ambientLight intensity={0.25} color="#334455" />
-      <directionalLight position={[200, 300, 100]} intensity={0.6} color="#ffffff" />
-      <directionalLight position={[-100, 200, -200]} intensity={0.2} color="#4488ff" />
+      <ambientLight intensity={0.5} color="#556677" />
+      <directionalLight position={[200, 300, 100]} intensity={0.8} color="#ffffff" />
+      <directionalLight position={[-100, 200, -200]} intensity={0.3} color="#4488ff" />
+      <hemisphereLight args={['#334466', '#112233', 0.3]} />
     </>
   );
 }
+
+// Calculate initial camera position from spawn data
+const spawn = getSpawnPosition(airports[0]);
+const spawnQuat = new THREE.Quaternion().setFromEuler(
+  new THREE.Euler(0, spawn.heading, 0, 'YXZ')
+);
+const initialCamOffset = new THREE.Vector3(0, 8, 25);
+initialCamOffset.applyQuaternion(spawnQuat);
+const initialCamPos: [number, number, number] = [
+  spawn.x + initialCamOffset.x,
+  spawn.y + initialCamOffset.y,
+  spawn.z + initialCamOffset.z,
+];
 
 export default function GameScene() {
   const [settings, setSettings] = useState<GameSettings>(defaultSettings);
@@ -51,13 +66,14 @@ export default function GameScene() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const playerPosition = useRef({ x: 0, y: 10, z: 0 });
+  // Initialize playerPosition at the actual spawn point so terrain renders there
+  const playerPosition = useRef({ x: spawn.x, y: spawn.y, z: spawn.z });
   const flightData = useRef({
     speed: 0,
     throttle: 0,
-    altitude: 10,
+    altitude: spawn.y,
     agl: 2,
-    heading: 0,
+    heading: spawn.heading,
     pitch: 0,
     roll: 0,
     isGrounded: true,
@@ -75,8 +91,8 @@ export default function GameScene() {
           camera={{
             fov: 65,
             near: 0.5,
-            far: spaceView ? 20000 : fogFar + 200,
-            position: [0, 25, 30],
+            far: fogFar + 200,
+            position: initialCamPos,
           }}
           gl={{
             antialias: false,

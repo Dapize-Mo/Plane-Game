@@ -64,8 +64,22 @@ export default function PlayerPlane({
     analogThrottle: 0,
   });
 
-  const cameraPos = useRef(new THREE.Vector3(spawn.x, spawn.y + 15, spawn.z + 30));
+  // Camera starts at correct position behind plane
+  const initQuat = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(0, spawn.heading, 0, 'YXZ')
+  );
+  const initCamOffset = new THREE.Vector3(0, 8, 25);
+  initCamOffset.applyQuaternion(initQuat);
+
+  const cameraPos = useRef(
+    new THREE.Vector3(
+      spawn.x + initCamOffset.x,
+      spawn.y + initCamOffset.y,
+      spawn.z + initCamOffset.z
+    )
+  );
   const cameraLookAt = useRef(new THREE.Vector3(spawn.x, spawn.y, spawn.z));
+  const frameCount = useRef(0);
 
   const handleKey = useCallback((e: KeyboardEvent, pressed: boolean) => {
     switch (e.key.toLowerCase()) {
@@ -156,6 +170,7 @@ export default function PlayerPlane({
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
+    frameCount.current++;
 
     pollGamepad();
 
@@ -199,20 +214,26 @@ export default function PlayerPlane({
     if (!spaceView) {
       const quaternion = new THREE.Quaternion().setFromEuler(euler);
       const camDist = settings.cameraDistance || 22;
-      const camHeight = settings.cameraHeight || 6;
+      const camHeight = settings.cameraHeight || 8;
       const camSmooth = settings.cameraSmoothness || 0.04;
 
       const cameraOffset = new THREE.Vector3(0, camHeight, camDist);
       cameraOffset.applyQuaternion(quaternion);
       cameraOffset.add(new THREE.Vector3(s.posX, s.posY, s.posZ));
 
-      const lookTarget = new THREE.Vector3(s.posX, s.posY, s.posZ);
-      const lookAhead = new THREE.Vector3(0, 0, -30);
+      const lookTarget = new THREE.Vector3(s.posX, s.posY + 1, s.posZ);
+      const lookAhead = new THREE.Vector3(0, 0, -20);
       lookAhead.applyQuaternion(quaternion);
       lookTarget.add(lookAhead);
 
-      cameraPos.current.lerp(cameraOffset, camSmooth);
-      cameraLookAt.current.lerp(lookTarget, camSmooth);
+      // SNAP camera on first few frames so player immediately sees the plane
+      if (frameCount.current < 5) {
+        cameraPos.current.copy(cameraOffset);
+        cameraLookAt.current.copy(lookTarget);
+      } else {
+        cameraPos.current.lerp(cameraOffset, camSmooth);
+        cameraLookAt.current.lerp(lookTarget, camSmooth);
+      }
 
       camera.position.copy(cameraPos.current);
       camera.lookAt(cameraLookAt.current);
@@ -221,36 +242,55 @@ export default function PlayerPlane({
 
   return (
     <group ref={groupRef}>
+      {/* Fuselage */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.3, 0.5, 4.5, 6]} />
+        <cylinderGeometry args={[0.35, 0.55, 5, 8]} />
         <meshStandardMaterial
-          color={planeConfig.current.color}
-          emissive="#444444"
-          emissiveIntensity={0.3}
-          metalness={0.6}
-          roughness={0.4}
+          color="#ffffff"
+          emissive="#888888"
+          emissiveIntensity={0.5}
+          metalness={0.4}
+          roughness={0.3}
         />
       </mesh>
-      <mesh position={[0, 0, -2.8]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.3, 1.0, 6]} />
-        <meshStandardMaterial color="#cccccc" emissive="#333333" emissiveIntensity={0.2} metalness={0.7} roughness={0.3} />
+      {/* Nose cone */}
+      <mesh position={[0, 0, -3]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.35, 1.2, 8]} />
+        <meshStandardMaterial color="#eeeeee" emissive="#777777" emissiveIntensity={0.4} metalness={0.5} roughness={0.3} />
       </mesh>
-      <mesh position={[0, -0.1, 0]}>
-        <boxGeometry args={[9, 0.08, 1.3]} />
-        <meshStandardMaterial color="#d0d0d0" emissive="#333333" emissiveIntensity={0.2} metalness={0.5} roughness={0.5} />
+      {/* Main wings */}
+      <mesh position={[0, -0.1, 0.2]}>
+        <boxGeometry args={[10, 0.1, 1.5]} />
+        <meshStandardMaterial color="#ffffff" emissive="#666666" emissiveIntensity={0.4} metalness={0.3} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 0.1, 2.2]}>
-        <boxGeometry args={[3.5, 0.06, 0.7]} />
-        <meshStandardMaterial color="#c8c8c8" emissive="#333333" emissiveIntensity={0.2} />
+      {/* Horizontal stabilizer */}
+      <mesh position={[0, 0.15, 2.5]}>
+        <boxGeometry args={[4, 0.08, 0.8]} />
+        <meshStandardMaterial color="#eeeeee" emissive="#666666" emissiveIntensity={0.3} />
       </mesh>
-      <mesh position={[0, 0.7, 2.0]}>
-        <boxGeometry args={[0.06, 1.3, 0.8]} />
-        <meshStandardMaterial color="#c8c8c8" emissive="#333333" emissiveIntensity={0.2} />
+      {/* Vertical stabilizer */}
+      <mesh position={[0, 0.8, 2.3]}>
+        <boxGeometry args={[0.08, 1.5, 0.9]} />
+        <meshStandardMaterial color="#eeeeee" emissive="#666666" emissiveIntensity={0.3} />
       </mesh>
-      <pointLight position={[0, 0, 2.5]} color={planeConfig.current.engineColor} intensity={2} distance={8} />
-      <pointLight position={[-4.5, -0.1, 0]} color="#ff0000" intensity={0.5} distance={5} />
-      <pointLight position={[4.5, -0.1, 0]} color="#00ff00" intensity={0.5} distance={5} />
-      <pointLight position={[0, 0, -3]} color="#ffffff" intensity={0.8} distance={8} />
+      {/* Engine glow - bright so the plane is visible */}
+      <pointLight position={[0, 0, 3]} color="#ff6600" intensity={3} distance={12} />
+      {/* Headlight - illuminates terrain in front */}
+      <spotLight
+        position={[0, -0.3, -3.5]}
+        target-position={[0, -5, -30]}
+        angle={0.4}
+        penumbra={0.5}
+        intensity={5}
+        distance={80}
+        color="#ffffff"
+      />
+      {/* Navigation lights */}
+      <pointLight position={[-5, -0.1, 0.2]} color="#ff0000" intensity={1} distance={8} />
+      <pointLight position={[5, -0.1, 0.2]} color="#00ff00" intensity={1} distance={8} />
+      <pointLight position={[0, 0.5, -3.5]} color="#ffffff" intensity={2} distance={15} />
+      {/* Belly light so plane is visible from below/behind */}
+      <pointLight position={[0, -0.5, 0]} color="#ffffff" intensity={1.5} distance={10} />
     </group>
   );
 }

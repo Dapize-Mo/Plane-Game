@@ -88,8 +88,15 @@ export default function FlightHUD({ flightData, settings = defaultSettings }: Fl
 
   return (
     <>
+      {/* Game title */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+        <div className="hud-text text-green-400/40 text-xs tracking-[0.4em] uppercase">
+          PARTICLE FLIGHT
+        </div>
+      </div>
+
       {/* Top bar */}
-      <div className="absolute top-4 left-0 right-0 flex justify-between px-6 pointer-events-none">
+      <div className="absolute top-10 left-0 right-0 flex justify-between px-6 pointer-events-none">
         <div className="hud-text text-green-400 text-sm">
           <div className="opacity-60 text-xs">SPD</div>
           <span ref={speedRef} className="text-2xl font-bold">0</span>
