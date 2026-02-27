@@ -3,14 +3,14 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Monochrome Terrain',
-    template: '%s | Monochrome Terrain',
+    default: 'Particle Thing',
+    template: '%s | Particle Thing',
   },
-  description: 'A procedural particle world with 1,000,000 points — hills, mountains, and a deep trench.',
+  description: 'A procedural particle landscape — 1,000,000 glowing points shaped by noise.',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#010102',
+  themeColor: '#010108',
   width: 'device-width',
   initialScale: 1,
 }

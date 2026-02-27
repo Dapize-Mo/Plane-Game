@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 
@@ -10,44 +9,31 @@ const MonochromeTerrain = dynamic(
 );
 
 export default function Home() {
-  const [viewMode, setViewMode] = useState<'orbit' | 'ball'>('orbit');
-
   return (
-    <div className="relative w-full h-screen bg-[#010102] overflow-hidden">
-      <MonochromeTerrain viewMode={viewMode} onViewModeChange={setViewMode} />
+    <div className="relative w-full h-screen bg-[#010108] overflow-hidden">
+      <MonochromeTerrain />
 
       <div className="absolute top-5 left-5 pointer-events-none z-50">
-        <h1 className="text-white/40 text-xs font-medium tracking-[0.3em] uppercase">
-          Monochrome Terrain
+        <h1 className="text-white/30 text-xs font-medium tracking-[0.3em] uppercase">
+          Particle Thing
         </h1>
-        <p className="text-white/20 text-[10px] mt-2 leading-relaxed">
-          1,000,000 Particles &bull; Expanded World
+        <p className="text-white/15 text-[10px] mt-2 leading-relaxed">
+          1,000,000 Particles
           <br />
-          {viewMode === 'orbit'
-            ? 'Left Click: Rotate \u2022 Right Click: Pan \u2022 Scroll: Zoom'
-            : 'WASD / Arrows: Roll Ball'}
-          <br />
-          Press V to toggle view
+          Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
         </p>
       </div>
 
-      {/* View toggle + nav */}
       <div className="absolute top-5 right-5 pointer-events-auto z-50 flex items-center gap-2">
-        <button
-          onClick={() => setViewMode(viewMode === 'orbit' ? 'ball' : 'orbit')}
-          className="text-white/50 text-xs hover:text-white/80 transition-colors border border-white/20 bg-black/40 px-3 py-1.5 rounded hover:border-white/40"
-        >
-          {viewMode === 'orbit' ? 'Ball View' : 'Orbit View'}
-        </button>
         <Link
           href="/profile"
-          className="text-white/50 text-xs hover:text-white/80 transition-colors border border-white/20 bg-black/40 px-3 py-1.5 rounded hover:border-white/40"
+          className="text-white/40 text-xs hover:text-white/70 transition-colors border border-white/10 bg-black/30 px-3 py-1.5 rounded hover:border-white/30 backdrop-blur-sm"
         >
           Profile
         </Link>
         <Link
           href="/about"
-          className="text-white/50 text-xs hover:text-white/80 transition-colors border border-white/20 bg-black/40 px-3 py-1.5 rounded hover:border-white/40"
+          className="text-white/40 text-xs hover:text-white/70 transition-colors border border-white/10 bg-black/30 px-3 py-1.5 rounded hover:border-white/30 backdrop-blur-sm"
         >
           About
         </Link>
@@ -58,7 +44,7 @@ export default function Home() {
           href="https://x.com/taylor_sntx"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-white/30 text-[10px] hover:text-white/60 transition-colors"
+          className="text-white/20 text-[10px] hover:text-white/50 transition-colors"
         >
           Inspired by @taylor_sntx
         </a>
