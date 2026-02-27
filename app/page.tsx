@@ -14,43 +14,65 @@ export default function Home() {
   const [settings, setSettings] = useState<ParticleSettings>({ ...DEFAULTS });
 
   return (
-    <div className="relative w-full h-screen bg-[#010108] overflow-hidden">
+    <div
+      style={{ position: 'relative', width: '100%', height: '100vh', background: '#010108', overflow: 'hidden' }}
+    >
       <MonochromeTerrain settings={settings} />
 
-      <div className="absolute top-5 left-5 pointer-events-none z-50">
-        <h1 className="text-white/30 text-xs font-medium tracking-[0.3em] uppercase">
+      {/* Title overlay — top left */}
+      <div
+        style={{ position: 'absolute', top: 20, left: 20, pointerEvents: 'none', zIndex: 50 }}
+      >
+        <h1
+          style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', margin: 0 }}
+        >
           Particle Thing
         </h1>
-        <p className="text-white/15 text-[10px] mt-2 leading-relaxed">
+        <p
+          style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 8, lineHeight: 1.6 }}
+        >
           1,000,000 Particles
           <br />
           Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
         </p>
       </div>
 
-      <SettingsPanel settings={settings} onChange={setSettings} />
-
-      <div className="absolute top-5 right-24 pointer-events-auto z-50 flex items-center gap-2">
+      {/* Nav links — top right, before settings button */}
+      <div
+        style={{ position: 'absolute', top: 20, right: 100, zIndex: 50, display: 'flex', alignItems: 'center', gap: 8 }}
+      >
         <Link
           href="/profile"
-          className="text-white/40 text-xs hover:text-white/70 transition-colors border border-white/10 bg-black/30 px-3 py-1.5 rounded hover:border-white/30 backdrop-blur-sm"
+          style={{
+            color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none',
+            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)',
+            padding: '6px 12px', borderRadius: 4,
+          }}
         >
           Profile
         </Link>
         <Link
           href="/about"
-          className="text-white/40 text-xs hover:text-white/70 transition-colors border border-white/10 bg-black/30 px-3 py-1.5 rounded hover:border-white/30 backdrop-blur-sm"
+          style={{
+            color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none',
+            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)',
+            padding: '6px 12px', borderRadius: 4,
+          }}
         >
           About
         </Link>
       </div>
 
-      <div className="absolute bottom-5 left-5 pointer-events-auto z-50">
+      {/* Settings panel — top right */}
+      <SettingsPanel settings={settings} onChange={setSettings} />
+
+      {/* Credit — bottom left */}
+      <div style={{ position: 'absolute', bottom: 20, left: 20, zIndex: 50 }}>
         <a
           href="https://x.com/taylor_sntx"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-white/20 text-[10px] hover:text-white/50 transition-colors"
+          style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, textDecoration: 'none' }}
         >
           Inspired by @taylor_sntx
         </a>

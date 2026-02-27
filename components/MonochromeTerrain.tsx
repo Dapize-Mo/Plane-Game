@@ -125,7 +125,7 @@ export default function MonochromeTerrain({ settings }: Props) {
     const ctrl = controlsRef.current;
     if (!u) return;
 
-    const theme = THEMES[settings.theme] || THEMES.arctic;
+    const theme = THEMES[settings.theme] || THEMES.mono;
 
     u.uBrightness.value = settings.brightness;
     u.uParticleSize.value = settings.particleSize;
@@ -201,7 +201,7 @@ export default function MonochromeTerrain({ settings }: Props) {
 
     // Scene
     const scene = new THREE.Scene();
-    const initTheme = THEMES.arctic;
+    const initTheme = THEMES[settings.theme] || THEMES.mono;
     const bgColor = new THREE.Color(initTheme.bg[0], initTheme.bg[1], initTheme.bg[2]);
     scene.background = bgColor;
     bgColorRef.current = bgColor;

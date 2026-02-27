@@ -66,7 +66,7 @@ const THEMES: Record<string, { label: string; colorLow: [number, number, number]
 export { THEMES };
 
 const DEFAULTS: ParticleSettings = {
-  theme: 'arctic',
+  theme: 'mono',
   brightness: 1.0,
   particleSize: 1.0,
   animSpeed: 1.0,
@@ -84,7 +84,6 @@ export default function SettingsPanel({ settings, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -101,46 +100,72 @@ export default function SettingsPanel({ settings, onChange }: Props) {
   };
 
   return (
-    <div ref={panelRef} className="absolute top-5 right-5 z-50">
+    <div ref={panelRef} style={{ position: 'absolute', top: 20, right: 20, zIndex: 50 }}>
       {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}
-        className={`
-          text-white/40 text-xs hover:text-white/70 transition-all
-          border bg-black/30 px-3 py-1.5 rounded backdrop-blur-sm
-          ${open ? 'border-white/25 text-white/60' : 'border-white/10 hover:border-white/30'}
-        `}
+        style={{
+          color: open ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.4)',
+          fontSize: 12,
+          border: `1px solid ${open ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'}`,
+          background: 'rgba(0,0,0,0.3)',
+          padding: '6px 12px',
+          borderRadius: 4,
+          cursor: 'pointer',
+          backdropFilter: 'blur(8px)',
+          fontFamily: 'inherit',
+        }}
       >
         Settings
       </button>
 
       {/* Panel */}
       {open && (
-        <div className="absolute top-10 right-0 mt-1 w-72 border border-white/10 bg-black/70 backdrop-blur-md rounded-lg p-4 space-y-4 shadow-2xl">
+        <div style={{
+          position: 'absolute',
+          top: 40,
+          right: 0,
+          width: 288,
+          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: 8,
+          padding: 16,
+          boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+        }}>
           {/* Theme selector */}
-          <div>
-            <label className="text-white/40 text-[10px] font-medium tracking-[0.15em] uppercase block mb-2">
+          <div style={{ marginBottom: 16 }}>
+            <label style={{
+              color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 500,
+              letterSpacing: '0.15em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8,
+            }}>
               Theme
             </label>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
               {Object.entries(THEMES).map(([key, t]) => (
                 <button
                   key={key}
                   onClick={() => set('theme', key)}
-                  className={`
-                    text-[10px] py-1.5 px-2 rounded transition-all
-                    ${settings.theme === key
-                      ? 'bg-white/15 text-white/80 border border-white/25'
-                      : 'bg-white/5 text-white/30 border border-transparent hover:bg-white/10 hover:text-white/50'
-                    }
-                  `}
+                  style={{
+                    fontSize: 10,
+                    padding: '6px 8px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    border: settings.theme === key ? '1px solid rgba(255,255,255,0.25)' : '1px solid transparent',
+                    background: settings.theme === key ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: settings.theme === key ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
                 >
-                  <span
-                    className="inline-block w-2 h-2 rounded-full mr-1 align-middle"
-                    style={{
-                      backgroundColor: `rgb(${t.colorHigh.map(c => Math.round(c * 255)).join(',')})`,
-                    }}
-                  />
+                  <span style={{
+                    display: 'inline-block',
+                    width: 8, height: 8, borderRadius: '50%',
+                    backgroundColor: `rgb(${t.colorHigh.map(c => Math.round(c * 255)).join(',')})`,
+                    flexShrink: 0,
+                  }} />
                   {t.label}
                 </button>
               ))}
@@ -148,17 +173,23 @@ export default function SettingsPanel({ settings, onChange }: Props) {
           </div>
 
           {/* Sliders */}
-          <Slider label="Brightness" value={settings.brightness} min={0.2} max={2.0} step={0.05} onChange={v => set('brightness', v)} />
-          <Slider label="Particle Size" value={settings.particleSize} min={0.3} max={3.0} step={0.1} onChange={v => set('particleSize', v)} />
-          <Slider label="Anim Speed" value={settings.animSpeed} min={0} max={3.0} step={0.1} onChange={v => set('animSpeed', v)} />
-          <Slider label="Fog Near" value={settings.fogNear} min={30} max={300} step={5} onChange={v => set('fogNear', v)} />
-          <Slider label="Fog Far" value={settings.fogFar} min={200} max={800} step={10} onChange={v => set('fogFar', v)} />
-          <Slider label="Rotate Speed" value={settings.autoRotateSpeed} min={0} max={1.0} step={0.02} onChange={v => set('autoRotateSpeed', v)} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Slider label="Brightness" value={settings.brightness} min={0.2} max={2.0} step={0.05} onChange={v => set('brightness', v)} />
+            <Slider label="Particle Size" value={settings.particleSize} min={0.3} max={3.0} step={0.1} onChange={v => set('particleSize', v)} />
+            <Slider label="Anim Speed" value={settings.animSpeed} min={0} max={3.0} step={0.1} onChange={v => set('animSpeed', v)} />
+            <Slider label="Fog Near" value={settings.fogNear} min={30} max={300} step={5} onChange={v => set('fogNear', v)} />
+            <Slider label="Fog Far" value={settings.fogFar} min={200} max={800} step={10} onChange={v => set('fogFar', v)} />
+            <Slider label="Rotate Speed" value={settings.autoRotateSpeed} min={0} max={1.0} step={0.02} onChange={v => set('autoRotateSpeed', v)} />
+          </div>
 
           {/* Reset */}
           <button
             onClick={() => onChange({ ...DEFAULTS })}
-            className="w-full text-[10px] text-white/25 hover:text-white/50 transition-colors py-1.5 border border-white/5 hover:border-white/15 rounded"
+            style={{
+              width: '100%', fontSize: 10, color: 'rgba(255,255,255,0.25)', cursor: 'pointer',
+              padding: '6px 0', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4,
+              background: 'transparent', marginTop: 12, fontFamily: 'inherit',
+            }}
           >
             Reset to Defaults
           </button>
@@ -173,9 +204,11 @@ function Slider({ label, value, min, max, step, onChange }: {
 }) {
   return (
     <div>
-      <div className="flex justify-between mb-1">
-        <span className="text-white/30 text-[10px]">{label}</span>
-        <span className="text-white/20 text-[10px] tabular-nums">{value.toFixed(step < 1 ? 2 : 0)}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>{label}</span>
+        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>
+          {value.toFixed(step < 1 ? 2 : 0)}
+        </span>
       </div>
       <input
         type="range"
@@ -184,12 +217,7 @@ function Slider({ label, value, min, max, step, onChange }: {
         step={step}
         value={value}
         onChange={e => onChange(parseFloat(e.target.value))}
-        className="w-full h-1 appearance-none bg-white/10 rounded-full outline-none cursor-pointer
-          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/50 [&::-webkit-slider-thumb]:hover:bg-white/70
-          [&::-webkit-slider-thumb]:transition-colors
-          [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full
-          [&::-moz-range-thumb]:bg-white/50 [&::-moz-range-thumb]:border-0"
+        style={{ width: '100%', height: 4, cursor: 'pointer', accentColor: 'rgba(255,255,255,0.5)' }}
       />
     </div>
   );
