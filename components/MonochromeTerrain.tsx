@@ -16,7 +16,7 @@ const CONFIG = {
   seaLevel: 0.08,
   colorLow: new THREE.Color(0x050505),
   colorHigh: new THREE.Color(0xffffff),
-  ballRadius: 2.0,
+  ballRadius: 3.0,
   ballSpeed: 0.8,
   ballFriction: 0.92,
   gravitySlope: 0.3,
@@ -171,8 +171,8 @@ export default function MonochromeTerrain({ viewMode, onViewModeChange }: Monoch
     });
     const ball = new THREE.Mesh(ballGeo, ballMat);
 
-    // Start ball near center
-    const startY = getHeight(0, 0) + CONFIG.ballRadius;
+    // Start ball near center — embed slightly so it sits within the particle cloud
+    const startY = getHeight(0, 0);
     ball.position.set(0, startY, 0);
     scene.add(ball);
 
@@ -285,9 +285,9 @@ export default function MonochromeTerrain({ viewMode, onViewModeChange }: Monoch
       ball.position.x = Math.max(-halfSize, Math.min(halfSize, ball.position.x));
       ball.position.z = Math.max(-halfSize, Math.min(halfSize, ball.position.z));
 
-      // Snap to terrain surface
+      // Snap to terrain surface — sit within particle cloud, not on top
       const terrainY = getHeight(ball.position.x, ball.position.z);
-      ball.position.y = terrainY + CONFIG.ballRadius;
+      ball.position.y = terrainY;
 
       // Roll rotation
       if (speed > 0.01) {
@@ -334,5 +334,5 @@ export default function MonochromeTerrain({ viewMode, onViewModeChange }: Monoch
     };
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0" />;
+  return <div ref={mountRef} className="absolute inset-0 z-0" />;
 }

@@ -16,7 +16,7 @@ export default function Home() {
     <div className="relative w-full h-screen bg-[#010102] overflow-hidden">
       <MonochromeTerrain viewMode={viewMode} onViewModeChange={setViewMode} />
 
-      <div className="absolute top-5 left-5 pointer-events-none z-10">
+      <div className="absolute top-5 left-5 pointer-events-none z-50">
         <h1 className="text-white/40 text-xs font-medium tracking-[0.3em] uppercase">
           Monochrome Terrain
         </h1>
@@ -32,28 +32,28 @@ export default function Home() {
       </div>
 
       {/* View toggle + nav */}
-      <div className="absolute top-5 right-5 pointer-events-auto z-10 flex items-center gap-2">
+      <div className="absolute top-5 right-5 pointer-events-auto z-50 flex items-center gap-2">
         <button
           onClick={() => setViewMode(viewMode === 'orbit' ? 'ball' : 'orbit')}
-          className="text-white/30 text-xs hover:text-white/60 transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-white/30"
+          className="text-white/50 text-xs hover:text-white/80 transition-colors border border-white/20 bg-black/40 px-3 py-1.5 rounded hover:border-white/40"
         >
           {viewMode === 'orbit' ? 'Ball View' : 'Orbit View'}
         </button>
         <Link
           href="/profile"
-          className="text-white/30 text-xs hover:text-white/60 transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-white/30"
+          className="text-white/50 text-xs hover:text-white/80 transition-colors border border-white/20 bg-black/40 px-3 py-1.5 rounded hover:border-white/40"
         >
           Profile
         </Link>
         <Link
           href="/about"
-          className="text-white/30 text-xs hover:text-white/60 transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-white/30"
+          className="text-white/50 text-xs hover:text-white/80 transition-colors border border-white/20 bg-black/40 px-3 py-1.5 rounded hover:border-white/40"
         >
           About
         </Link>
       </div>
 
-      <div className="absolute bottom-5 left-5 pointer-events-auto z-10">
+      <div className="absolute bottom-5 left-5 pointer-events-auto z-50">
         <a
           href="https://x.com/taylor_sntx"
           target="_blank"
