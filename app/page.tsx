@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import SettingsPanel, { DEFAULTS, type ParticleSettings } from '@/components/SettingsPanel';
 
 const MonochromeTerrain = dynamic(
   () => import('@/components/MonochromeTerrain'),
@@ -9,9 +11,11 @@ const MonochromeTerrain = dynamic(
 );
 
 export default function Home() {
+  const [settings, setSettings] = useState<ParticleSettings>({ ...DEFAULTS });
+
   return (
     <div className="relative w-full h-screen bg-[#010108] overflow-hidden">
-      <MonochromeTerrain />
+      <MonochromeTerrain settings={settings} />
 
       <div className="absolute top-5 left-5 pointer-events-none z-50">
         <h1 className="text-white/30 text-xs font-medium tracking-[0.3em] uppercase">
@@ -24,7 +28,9 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="absolute top-5 right-5 pointer-events-auto z-50 flex items-center gap-2">
+      <SettingsPanel settings={settings} onChange={setSettings} />
+
+      <div className="absolute top-5 right-24 pointer-events-auto z-50 flex items-center gap-2">
         <Link
           href="/profile"
           className="text-white/40 text-xs hover:text-white/70 transition-colors border border-white/10 bg-black/30 px-3 py-1.5 rounded hover:border-white/30 backdrop-blur-sm"

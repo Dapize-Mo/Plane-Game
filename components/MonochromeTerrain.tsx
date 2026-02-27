@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createNoise2D } from 'simplex-noise';
+import { type ParticleSettings, THEMES } from './SettingsPanel';
 
 const CONFIG = {
   gridSize: 1000,
@@ -24,6 +25,10 @@ const vertexShader = /* glsl */ `
   varying float vRandom;
   uniform float uTime;
   uniform float uMaxHeight;
+  uniform float uAnimSpeed;
+  uniform float uParticleSize;
+  uniform float uFogNear;
+  uniform float uFogFar;
 
   void main() {
     vHeight = aHeight / uMaxHeight;
@@ -32,21 +37,22 @@ const vertexShader = /* glsl */ `
     vec3 pos = position;
 
     // Subtle vertical breathing based on height and time
-    float breathe = sin(uTime * 0.4 + pos.x * 0.02 + pos.z * 0.02) * 0.5 + 0.5;
+    float breathe = sin(uTime * 0.4 * uAnimSpeed + pos.x * 0.02 + pos.z * 0.02) * 0.5 + 0.5;
     pos.y += breathe * vHeight * 2.0;
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
 
     // Size: taller particles are slightly larger, plus subtle pulse
-    float pulse = 1.0 + sin(uTime * 0.8 + aRandom * 6.28) * 0.15 * vHeight;
+    float pulse = 1.0 + sin(uTime * 0.8 * uAnimSpeed + aRandom * 6.28) * 0.15 * vHeight;
     float heightSize = 1.0 + vHeight * 1.5;
-    gl_PointSize = ${CONFIG.baseSize.toFixed(1)} * heightSize * pulse * (300.0 / -mvPos.z);
+    float baseSize = ${CONFIG.baseSize.toFixed(1)} * uParticleSize;
+    gl_PointSize = baseSize * heightSize * pulse * (300.0 / -mvPos.z);
 
     gl_Position = projectionMatrix * mvPos;
 
     // Fog factor
     float fogDist = length(mvPos.xyz);
-    vFog = smoothstep(100.0, 450.0, fogDist);
+    vFog = smoothstep(uFogNear, uFogFar, fogDist);
   }
 `;
 
@@ -55,7 +61,13 @@ const fragmentShader = /* glsl */ `
   varying float vFog;
   varying float vRandom;
   uniform float uTime;
+  uniform float uAnimSpeed;
+  uniform float uBrightness;
   uniform vec3 uBgColor;
+  uniform vec3 uColorLow;
+  uniform vec3 uColorMid;
+  uniform vec3 uColorHigh;
+  uniform vec3 uColorPeak;
 
   void main() {
     // Soft circular particle
@@ -65,29 +77,27 @@ const fragmentShader = /* glsl */ `
 
     float alpha = 1.0 - smoothstep(0.15, 0.5, dist);
 
-    // Color gradient: deep blue/purple at low, white/cyan glow at peaks
-    vec3 colorLow = vec3(0.02, 0.02, 0.06);
-    vec3 colorMid = vec3(0.08, 0.12, 0.25);
-    vec3 colorHigh = vec3(0.7, 0.85, 1.0);
-    vec3 colorPeak = vec3(1.0, 1.0, 1.0);
-
+    // Color gradient driven by uniforms
     vec3 color;
     float h = vHeight;
     if (h < 0.3) {
-      color = mix(colorLow, colorMid, h / 0.3);
+      color = mix(uColorLow, uColorMid, h / 0.3);
     } else if (h < 0.7) {
-      color = mix(colorMid, colorHigh, (h - 0.3) / 0.4);
+      color = mix(uColorMid, uColorHigh, (h - 0.3) / 0.4);
     } else {
-      color = mix(colorHigh, colorPeak, (h - 0.7) / 0.3);
+      color = mix(uColorHigh, uColorPeak, (h - 0.7) / 0.3);
     }
 
     // Subtle shimmer on higher particles
-    float shimmer = sin(uTime * 1.5 + vRandom * 40.0) * 0.5 + 0.5;
+    float shimmer = sin(uTime * 1.5 * uAnimSpeed + vRandom * 40.0) * 0.5 + 0.5;
     color += shimmer * 0.08 * h;
 
     // Inner glow — brighter at center
     float glow = 1.0 - smoothstep(0.0, 0.4, dist);
     color += glow * 0.15 * h;
+
+    // Apply brightness
+    color *= uBrightness;
 
     // Apply fog
     color = mix(color, uBgColor, vFog);
@@ -98,9 +108,49 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-export default function MonochromeTerrain() {
-  const mountRef = useRef<HTMLDivElement>(null);
+interface Props {
+  settings: ParticleSettings;
+}
 
+export default function MonochromeTerrain({ settings }: Props) {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const uniformsRef = useRef<Record<string, { value: unknown }> | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const bgColorRef = useRef<THREE.Color | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+
+  // Update uniforms reactively without recreating the scene
+  useEffect(() => {
+    const u = uniformsRef.current;
+    const ctrl = controlsRef.current;
+    if (!u) return;
+
+    const theme = THEMES[settings.theme] || THEMES.arctic;
+
+    u.uBrightness.value = settings.brightness;
+    u.uParticleSize.value = settings.particleSize;
+    u.uAnimSpeed.value = settings.animSpeed;
+    u.uFogNear.value = settings.fogNear;
+    u.uFogFar.value = settings.fogFar;
+    u.uColorLow.value = new THREE.Vector3(...theme.colorLow);
+    u.uColorMid.value = new THREE.Vector3(...theme.colorMid);
+    u.uColorHigh.value = new THREE.Vector3(...theme.colorHigh);
+    u.uColorPeak.value = new THREE.Vector3(...theme.colorPeak);
+
+    const newBg = new THREE.Color(theme.bg[0], theme.bg[1], theme.bg[2]);
+    u.uBgColor.value = new THREE.Vector3(newBg.r, newBg.g, newBg.b);
+
+    if (bgColorRef.current && sceneRef.current) {
+      bgColorRef.current.copy(newBg);
+      sceneRef.current.background = bgColorRef.current;
+    }
+
+    if (ctrl) {
+      ctrl.autoRotateSpeed = settings.autoRotateSpeed;
+    }
+  }, [settings]);
+
+  // Scene setup — runs once
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
@@ -151,8 +201,11 @@ export default function MonochromeTerrain() {
 
     // Scene
     const scene = new THREE.Scene();
-    const bgColor = new THREE.Color(0x010108);
+    const initTheme = THEMES.arctic;
+    const bgColor = new THREE.Color(initTheme.bg[0], initTheme.bg[1], initTheme.bg[2]);
     scene.background = bgColor;
+    bgColorRef.current = bgColor;
+    sceneRef.current = scene;
 
     // Camera
     const camera = new THREE.PerspectiveCamera(
@@ -178,6 +231,7 @@ export default function MonochromeTerrain() {
     controls.autoRotateSpeed = 0.12;
     controls.maxDistance = 350;
     controls.minDistance = 30;
+    controlsRef.current = controls;
 
     // Generate terrain
     const count = CONFIG.gridSize * CONFIG.gridSize;
@@ -210,8 +264,18 @@ export default function MonochromeTerrain() {
     const uniforms = {
       uTime: { value: 0 },
       uMaxHeight: { value: maxH },
+      uBrightness: { value: 1.0 },
+      uParticleSize: { value: 1.0 },
+      uAnimSpeed: { value: 1.0 },
+      uFogNear: { value: 100.0 },
+      uFogFar: { value: 450.0 },
       uBgColor: { value: new THREE.Vector3(bgColor.r, bgColor.g, bgColor.b) },
+      uColorLow: { value: new THREE.Vector3(...initTheme.colorLow) },
+      uColorMid: { value: new THREE.Vector3(...initTheme.colorMid) },
+      uColorHigh: { value: new THREE.Vector3(...initTheme.colorHigh) },
+      uColorPeak: { value: new THREE.Vector3(...initTheme.colorPeak) },
     };
+    uniformsRef.current = uniforms;
 
     const material = new THREE.ShaderMaterial({
       vertexShader,
@@ -250,6 +314,10 @@ export default function MonochromeTerrain() {
       renderer.dispose();
       geometry.dispose();
       material.dispose();
+      uniformsRef.current = null;
+      controlsRef.current = null;
+      bgColorRef.current = null;
+      sceneRef.current = null;
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
     };
   }, []);
