@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createNoise2D } from 'simplex-noise';
 
 const CONFIG = {
-  gridSize: 700,
+  gridSize: 1000,
   spacing: 0.7,
   heightScale: 90.0,
   noiseFreq: 0.018,
@@ -27,7 +27,9 @@ export default function MonochromeTerrain() {
 
     // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x010102);
+    const bgColor = new THREE.Color(0x010102);
+    scene.background = bgColor;
+    scene.fog = new THREE.Fog(bgColor, 150, 400);
 
     // Camera
     const camera = new THREE.PerspectiveCamera(
@@ -36,7 +38,7 @@ export default function MonochromeTerrain() {
       1,
       20000
     );
-    camera.position.set(350, 300, 350);
+    camera.position.set(0, 100, 200);
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -51,6 +53,7 @@ export default function MonochromeTerrain() {
     controls.screenSpacePanning = true;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.15;
+    controls.maxDistance = 350;
 
     // Terrain
     const simplex = createNoise2D();
@@ -75,12 +78,7 @@ export default function MonochromeTerrain() {
         noiseVal += simplex(nx * 4, nz * 4) * 0.25;
         noiseVal += simplex(nx * 8, nz * 8) * 0.125;
 
-        const yRaw = noiseVal / 1.875;
-
-        const dist = Math.sqrt(x * x + z * z);
-        const mask = Math.pow(Math.max(0, 1 - dist / offset), 2);
-
-        const yFinal = yRaw * mask;
+        const yFinal = noiseVal / 1.875;
 
         const isWater = yFinal < CONFIG.seaLevel;
         const displayY = isWater
@@ -114,6 +112,7 @@ export default function MonochromeTerrain() {
       transparent: true,
       opacity: 0.85,
       sizeAttenuation: true,
+      fog: true,
     });
 
     scene.add(new THREE.Points(geometry, material));

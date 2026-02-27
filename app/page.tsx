@@ -17,7 +17,7 @@ export default function Home() {
           Monochrome Terrain
         </h1>
         <p className="text-white/20 text-[10px] mt-2 leading-relaxed">
-          490,000 Particles &bull; Expanded World
+          1,000,000 Particles &bull; Expanded World
           <br />
           Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
         </p>
