@@ -7,10 +7,10 @@ import { createNoise2D } from 'simplex-noise';
 
 const CONFIG = {
   gridSize: 700,
-  spacing: 0.07,
-  heightScale: 9.0,
+  spacing: 0.7,
+  heightScale: 90.0,
   noiseFreq: 0.018,
-  particleSize: 0.008,
+  particleSize: 0.08,
   seaLevel: 0.08,
   colorLow: new THREE.Color(0x050505),
   colorHigh: new THREE.Color(0xffffff),
@@ -33,10 +33,10 @@ export default function MonochromeTerrain() {
     const camera = new THREE.PerspectiveCamera(
       50,
       window.innerWidth / window.innerHeight,
-      0.1,
-      2000
+      1,
+      20000
     );
-    camera.position.set(35, 30, 35);
+    camera.position.set(350, 300, 350);
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
