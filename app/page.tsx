@@ -1,17 +1,105 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import SettingsPanel, { DEFAULTS, type ParticleSettings } from '@/components/SettingsPanel';
+import SettingsPanel, { DEFAULTS, THEMES, type ParticleSettings } from '@/components/SettingsPanel';
 
 const MonochromeTerrain = dynamic(
   () => import('@/components/MonochromeTerrain'),
   { ssr: false }
 );
 
+const STORAGE_KEY = 'particle-settings';
+
+function loadSettings(): ParticleSettings {
+  if (typeof window === 'undefined') return { ...DEFAULTS };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULTS };
+    const parsed = JSON.parse(raw);
+    // Validate all keys exist with correct types
+    const result = { ...DEFAULTS };
+    for (const key of Object.keys(DEFAULTS) as (keyof ParticleSettings)[]) {
+      if (key in parsed && typeof parsed[key] === typeof DEFAULTS[key]) {
+        result[key] = parsed[key];
+      }
+    }
+    // Validate theme exists
+    if (!(result.theme in THEMES)) result.theme = DEFAULTS.theme;
+    return result;
+  } catch {
+    return { ...DEFAULTS };
+  }
+}
+
 export default function Home() {
-  const [settings, setSettings] = useState<ParticleSettings>({ ...DEFAULTS });
+  const [settings, setSettings] = useState<ParticleSettings>(() => loadSettings());
+  const [showFps, setShowFps] = useState(false);
+  const [fps, setFps] = useState(0);
+
+  // Persist settings to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch { /* quota exceeded, ignore */ }
+  }, [settings]);
+
+  // FPS counter
+  useEffect(() => {
+    if (!showFps) return;
+    let frames = 0;
+    let last = performance.now();
+    let raf = 0;
+    const tick = () => {
+      frames++;
+      const now = performance.now();
+      if (now - last >= 1000) {
+        setFps(frames);
+        frames = 0;
+        last = now;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [showFps]);
+
+  // Keyboard shortcuts
+  const themeKeys = Object.keys(THEMES);
+  const handleKeyboard = useCallback((e: KeyboardEvent) => {
+    // Ignore if typing in an input
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    switch (e.key.toLowerCase()) {
+      case 'r':
+        setSettings({ ...DEFAULTS });
+        break;
+      case 't': {
+        setSettings(prev => {
+          const idx = themeKeys.indexOf(prev.theme);
+          const next = themeKeys[(idx + 1) % themeKeys.length];
+          return { ...prev, theme: next };
+        });
+        break;
+      }
+      case ' ':
+        e.preventDefault();
+        setSettings(prev => ({
+          ...prev,
+          autoRotateSpeed: prev.autoRotateSpeed > 0 ? 0 : DEFAULTS.autoRotateSpeed,
+        }));
+        break;
+      case 'f':
+        setShowFps(prev => !prev);
+        break;
+    }
+  }, [themeKeys]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [handleKeyboard]);
 
   return (
     <div
@@ -35,7 +123,25 @@ export default function Home() {
           <br />
           Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
         </p>
+        <p
+          style={{ color: 'rgba(255,255,255,0.1)', fontSize: 9, marginTop: 6, lineHeight: 1.5 }}
+        >
+          T: Cycle Theme &bull; R: Reset &bull; Space: Pause Rotation &bull; F: FPS
+        </p>
       </div>
+
+      {/* FPS counter — top left below title */}
+      {showFps && (
+        <div
+          style={{
+            position: 'absolute', top: 90, left: 20, zIndex: 50,
+            color: 'rgba(255,255,255,0.3)', fontSize: 10,
+            fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace',
+          }}
+        >
+          {fps} FPS
+        </div>
+      )}
 
       {/* Nav links — top right, before settings button */}
       <div
