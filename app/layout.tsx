@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     default: 'Particle Thing',
     template: '%s | Particle Thing',
   },
-  description: 'A procedural particle landscape — 1,000,000 glowing points shaped by noise.',
+  description: 'Procedural particle landscapes — millions of glowing points shaped by noise, waves, and custom shaders.',
 }
 
 export const viewport: Viewport = {
@@ -22,7 +22,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body style={{ margin: 0, padding: 0, background: '#010108', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+        {children}
+      </body>
     </html>
   )
 }

@@ -5,12 +5,18 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import SettingsPanel, { DEFAULTS, THEMES, type ParticleSettings } from '@/components/SettingsPanel';
 
-const MonochromeTerrain = dynamic(
-  () => import('@/components/MonochromeTerrain'),
-  { ssr: false }
-);
+const MonochromeTerrain = dynamic(() => import('@/components/MonochromeTerrain'), { ssr: false });
+const OceanMountain = dynamic(() => import('@/components/OceanMountain'), { ssr: false });
+
+const SCENES = [
+  { id: 'terrain', label: 'Terrain', desc: 'Mountains, trench, rolling hills' },
+  { id: 'ocean', label: 'Ocean', desc: 'Island mountain rising from the sea' },
+] as const;
+
+type SceneId = (typeof SCENES)[number]['id'];
 
 const STORAGE_KEY = 'particle-settings';
+const SCENE_KEY = 'particle-scene';
 
 function loadSettings(): ParticleSettings {
   if (typeof window === 'undefined') return { ...DEFAULTS };
@@ -18,32 +24,42 @@ function loadSettings(): ParticleSettings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULTS };
     const parsed = JSON.parse(raw);
-    // Validate all keys exist with correct types
-    const result = { ...DEFAULTS };
-    for (const key of Object.keys(DEFAULTS) as (keyof ParticleSettings)[]) {
-      if (key in parsed && typeof parsed[key] === typeof DEFAULTS[key]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = { ...DEFAULTS };
+    for (const key of Object.keys(DEFAULTS)) {
+      if (key in parsed && typeof parsed[key] === typeof result[key]) {
         result[key] = parsed[key];
       }
     }
-    // Validate theme exists
     if (!(result.theme in THEMES)) result.theme = DEFAULTS.theme;
-    return result;
+    return result as ParticleSettings;
   } catch {
     return { ...DEFAULTS };
   }
 }
 
+function loadScene(): SceneId {
+  if (typeof window === 'undefined') return 'terrain';
+  const stored = localStorage.getItem(SCENE_KEY);
+  if (stored === 'terrain' || stored === 'ocean') return stored;
+  return 'terrain';
+}
+
 export default function Home() {
   const [settings, setSettings] = useState<ParticleSettings>(() => loadSettings());
+  const [scene, setScene] = useState<SceneId>(() => loadScene());
   const [showFps, setShowFps] = useState(false);
   const [fps, setFps] = useState(0);
 
-  // Persist settings to localStorage
+  // Persist settings
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch { /* quota exceeded, ignore */ }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
   }, [settings]);
+
+  // Persist scene
+  useEffect(() => {
+    try { localStorage.setItem(SCENE_KEY, scene); } catch {}
+  }, [scene]);
 
   // FPS counter
   useEffect(() => {
@@ -68,7 +84,6 @@ export default function Home() {
   // Keyboard shortcuts
   const themeKeys = Object.keys(THEMES);
   const handleKeyboard = useCallback((e: KeyboardEvent) => {
-    // Ignore if typing in an input
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
     switch (e.key.toLowerCase()) {
@@ -93,6 +108,10 @@ export default function Home() {
       case 'f':
         setShowFps(prev => !prev);
         break;
+      case 'tab':
+        e.preventDefault();
+        setScene(prev => prev === 'terrain' ? 'ocean' : 'terrain');
+        break;
     }
   }, [themeKeys]);
 
@@ -101,52 +120,70 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyboard);
   }, [handleKeyboard]);
 
+  const currentScene = SCENES.find(s => s.id === scene)!;
+
   return (
-    <div
-      style={{ position: 'relative', width: '100%', height: '100vh', background: '#010108', overflow: 'hidden' }}
-    >
-      <MonochromeTerrain settings={settings} />
+    <div style={{ position: 'relative', width: '100%', height: '100vh', background: '#010108', overflow: 'hidden' }}>
+
+      {/* Render active scene */}
+      {scene === 'terrain' ? (
+        <MonochromeTerrain settings={settings} />
+      ) : (
+        <OceanMountain settings={settings} />
+      )}
 
       {/* Title overlay — top left */}
-      <div
-        style={{ position: 'absolute', top: 20, left: 20, pointerEvents: 'none', zIndex: 50 }}
-      >
-        <h1
-          style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', margin: 0 }}
-        >
+      <div style={{ position: 'absolute', top: 20, left: 20, pointerEvents: 'none', zIndex: 50 }}>
+        <h1 style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', margin: 0 }}>
           Particle Thing
         </h1>
-        <p
-          style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 8, lineHeight: 1.6 }}
-        >
-          1,000,000 Particles
+        <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 8, lineHeight: 1.6 }}>
+          1,000,000 Particles &bull; {currentScene.desc}
           <br />
           Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
         </p>
-        <p
-          style={{ color: 'rgba(255,255,255,0.1)', fontSize: 9, marginTop: 6, lineHeight: 1.5 }}
-        >
-          T: Cycle Theme &bull; R: Reset &bull; Space: Pause Rotation &bull; F: FPS
+        <p style={{ color: 'rgba(255,255,255,0.1)', fontSize: 9, marginTop: 6, lineHeight: 1.5 }}>
+          T: Theme &bull; R: Reset &bull; Space: Pause &bull; F: FPS &bull; Tab: Switch Scene
         </p>
       </div>
 
-      {/* FPS counter — top left below title */}
+      {/* FPS counter */}
       {showFps && (
-        <div
-          style={{
-            position: 'absolute', top: 90, left: 20, zIndex: 50,
-            color: 'rgba(255,255,255,0.3)', fontSize: 10,
-            fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace',
-          }}
-        >
+        <div style={{
+          position: 'absolute', top: 95, left: 20, zIndex: 50,
+          color: 'rgba(255,255,255,0.3)', fontSize: 10,
+          fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace',
+        }}>
           {fps} FPS
         </div>
       )}
 
-      {/* Nav links — top right, before settings button */}
-      <div
-        style={{ position: 'absolute', top: 20, right: 100, zIndex: 50, display: 'flex', alignItems: 'center', gap: 8 }}
-      >
+      {/* Scene selector — bottom center */}
+      <div style={{
+        position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 50, display: 'flex', gap: 4,
+        border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6,
+        background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', padding: 3,
+      }}>
+        {SCENES.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setScene(s.id)}
+            style={{
+              fontSize: 11, padding: '6px 16px', borderRadius: 4,
+              cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+              background: scene === s.id ? 'rgba(255,255,255,0.12)' : 'transparent',
+              color: scene === s.id ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)',
+              transition: 'all 0.2s',
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Nav links */}
+      <div style={{ position: 'absolute', top: 20, right: 100, zIndex: 50, display: 'flex', alignItems: 'center', gap: 8 }}>
         <Link
           href="/profile"
           style={{
@@ -169,10 +206,10 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Settings panel — top right */}
+      {/* Settings panel */}
       <SettingsPanel settings={settings} onChange={setSettings} />
 
-      {/* Credit — bottom left */}
+      {/* Credit */}
       <div style={{ position: 'absolute', bottom: 20, left: 20, zIndex: 50 }}>
         <a
           href="https://x.com/taylor_sntx"
