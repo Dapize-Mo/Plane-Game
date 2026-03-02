@@ -303,6 +303,7 @@ export default function ParticleBall({ settings }: Props) {
     const worldPt   = new THREE.Vector3();
 
     function clientToWorld(cx: number, cy: number): { x: number; y: number } | null {
+      if (!el) return null;
       const rect = el.getBoundingClientRect();
       const ndc  = new THREE.Vector2(
         ((cx - rect.left) / rect.width)  *  2 - 1,
