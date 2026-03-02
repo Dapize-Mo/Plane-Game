@@ -7,7 +7,6 @@ import { createNoise2D } from 'simplex-noise';
 import { type ParticleSettings, THEMES } from './SettingsPanel';
 
 const CONFIG = {
-  gridSize: 1000,
   spacing: 0.7,
   hillHeight: 25.0,
   mountainHeight: 90.0,
@@ -15,7 +14,13 @@ const CONFIG = {
   noiseFreq: 0.018,
   baseSize: 1.8,
   seaLevel: 0.08,
-};
+} as const;
+
+function getGridSize(quality: string) {
+  if (quality === 'low') return 500;
+  if (quality === 'medium') return 750;
+  return 1000;
+}
 
 const vertexShader = /* glsl */ `
   attribute float aHeight;
@@ -150,17 +155,18 @@ export default function MonochromeTerrain({ settings }: Props) {
     }
   }, [settings]);
 
-  // Scene setup — runs once
+  // Scene setup — runs once per mount (remounts when quality key changes)
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
 
     let raf = 0;
 
+    const gridSize = getGridSize(settings.quality);
     const simplex = createNoise2D();
-    const totalSize = CONFIG.gridSize * CONFIG.spacing;
+    const totalSize = gridSize * CONFIG.spacing;
     const offset = totalSize / 2;
-    const noiseScale = 350 / CONFIG.gridSize;
+    const noiseScale = 350 / gridSize;
 
     const mountainCenterX = 0.35;
     const mountainWidth = 0.06;
@@ -177,8 +183,8 @@ export default function MonochromeTerrain({ settings }: Props) {
       noiseVal += simplex(nx * 8, nz * 8) * 0.125;
       noiseVal = noiseVal / 1.875;
 
-      const normI = i / CONFIG.gridSize;
-      const normJ = j / CONFIG.gridSize;
+      const normI = i / gridSize;
+      const normJ = j / gridSize;
 
       const mountainWave = simplex(normJ * 3, 0.5) * 0.04;
       const mountainDist = Math.abs(normI - mountainCenterX - mountainWave);
@@ -234,15 +240,15 @@ export default function MonochromeTerrain({ settings }: Props) {
     controlsRef.current = controls;
 
     // Generate terrain
-    const count = CONFIG.gridSize * CONFIG.gridSize;
+    const count = gridSize * gridSize;
     const positions = new Float32Array(count * 3);
     const heights = new Float32Array(count);
     const randoms = new Float32Array(count);
     const maxH = CONFIG.hillHeight + CONFIG.mountainHeight;
 
     let k = 0;
-    for (let i = 0; i < CONFIG.gridSize; i++) {
-      for (let j = 0; j < CONFIG.gridSize; j++) {
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
         const x = i * CONFIG.spacing - offset;
         const z = j * CONFIG.spacing - offset;
         const y = getHeight(i, j);

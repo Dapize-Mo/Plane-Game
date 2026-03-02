@@ -7,10 +7,12 @@ import { type ParticleSettings, THEMES } from './SettingsPanel';
 
 // Galaxy parameters
 const ARM_COUNT = 4;
-const PARTICLES_PER_ARM = 120_000;
-const BULGE_COUNT = 80_000;
-const HALO_COUNT = 50_000;
-const TOTAL = ARM_COUNT * PARTICLES_PER_ARM + BULGE_COUNT + HALO_COUNT;
+
+function getGalaxyCounts(quality: string) {
+  if (quality === 'low')    return { perArm: 30_000, bulge: 25_000, halo: 15_000 };
+  if (quality === 'medium') return { perArm: 70_000, bulge: 50_000, halo: 30_000 };
+  return                           { perArm: 120_000, bulge: 80_000, halo: 50_000 };
+}
 
 const GALAXY_RADIUS = 280;
 const ARM_TWIST = 3.2;       // radians of twist per arm
@@ -172,6 +174,9 @@ export default function Galaxy({ settings }: Props) {
     const el = mountRef.current;
     if (!el) return;
     let raf = 0;
+
+    const { perArm: PARTICLES_PER_ARM, bulge: BULGE_COUNT, halo: HALO_COUNT } = getGalaxyCounts(settings.quality);
+    const TOTAL = ARM_COUNT * PARTICLES_PER_ARM + BULGE_COUNT + HALO_COUNT;
 
     const positions = new Float32Array(TOTAL * 3);
     const types     = new Float32Array(TOTAL);

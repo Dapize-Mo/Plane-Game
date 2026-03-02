@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 
+export type Quality = 'low' | 'medium' | 'high';
+
 export interface ParticleSettings {
   theme: string;
   brightness: number;
@@ -10,6 +12,7 @@ export interface ParticleSettings {
   fogNear: number;
   fogFar: number;
   autoRotateSpeed: number;
+  quality: Quality;
 }
 
 const THEMES: Record<string, { label: string; colorLow: [number, number, number]; colorMid: [number, number, number]; colorHigh: [number, number, number]; colorPeak: [number, number, number]; bg: [number, number, number] }> = {
@@ -73,6 +76,7 @@ const DEFAULTS: ParticleSettings = {
   fogNear: 100,
   fogFar: 450,
   autoRotateSpeed: 0.12,
+  quality: 'high',
 };
 
 interface Props {
@@ -170,6 +174,41 @@ export default function SettingsPanel({ settings, onChange }: Props) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Quality selector */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{
+              color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 500,
+              letterSpacing: '0.15em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8,
+            }}>
+              Quality
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+              {([
+                { id: 'low',    label: 'Low',    hint: '~80–250k' },
+                { id: 'medium', label: 'Medium', hint: '~160–560k' },
+                { id: 'high',   label: 'High',   hint: '~250k–1M' },
+              ] as { id: Quality; label: string; hint: string }[]).map(q => (
+                <button
+                  key={q.id}
+                  onClick={() => set('quality', q.id)}
+                  title={`${q.label} — ${q.hint} particles`}
+                  style={{
+                    fontSize: 10, padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
+                    border: settings.quality === q.id ? '1px solid rgba(255,255,255,0.25)' : '1px solid transparent',
+                    background: settings.quality === q.id ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: settings.quality === q.id ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 9, marginTop: 6, lineHeight: 1.4 }}>
+              Reloads scene. Use Low on mobile or slow devices.
+            </p>
           </div>
 
           {/* Sliders */}

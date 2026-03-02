@@ -6,10 +6,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { type ParticleSettings, THEMES } from './SettingsPanel';
 
 // Vortex: spiraling columns + debris field + lightning streamers
-const SPIRAL_COUNT  = 150_000;
-const DEBRIS_COUNT  = 80_000;
-const STREAMER_COUNT = 20_000;
-const TOTAL = SPIRAL_COUNT + DEBRIS_COUNT + STREAMER_COUNT;
+function getVortexCounts(quality: string) {
+  if (quality === 'low')    return { spiral: 50_000, debris: 25_000, streamers: 7_000 };
+  if (quality === 'medium') return { spiral: 90_000, debris: 50_000, streamers: 13_000 };
+  return                           { spiral: 150_000, debris: 80_000, streamers: 20_000 };
+}
 
 const HEIGHT = 160;
 const BASE_RADIUS = 80;
@@ -181,6 +182,9 @@ export default function Vortex({ settings }: Props) {
     const el = mountRef.current;
     if (!el) return;
     let raf = 0;
+
+    const { spiral: SPIRAL_COUNT, debris: DEBRIS_COUNT, streamers: STREAMER_COUNT } = getVortexCounts(settings.quality);
+    const TOTAL = SPIRAL_COUNT + DEBRIS_COUNT + STREAMER_COUNT;
 
     const positions  = new Float32Array(TOTAL * 3);
     const types      = new Float32Array(TOTAL);

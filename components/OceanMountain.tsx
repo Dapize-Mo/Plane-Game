@@ -7,7 +7,6 @@ import { createNoise2D } from 'simplex-noise';
 import { type ParticleSettings, THEMES } from './SettingsPanel';
 
 const CONFIG = {
-  gridSize: 1000,
   spacing: 0.7,
   waterLevel: 2.0,
   mountainPeakHeight: 110.0,
@@ -16,7 +15,13 @@ const CONFIG = {
   baseSize: 1.8,
   waveAmplitude: 3.5,
   waveFreq: 0.04,
-};
+} as const;
+
+function getGridSize(quality: string) {
+  if (quality === 'low') return 500;
+  if (quality === 'medium') return 750;
+  return 1000;
+}
 
 const vertexShader = /* glsl */ `
   attribute float aHeight;
@@ -170,20 +175,21 @@ export default function OceanMountain({ settings }: Props) {
     }
   }, [settings]);
 
-  // Scene setup
+  // Scene setup — runs once per mount (remounts when quality key changes)
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
 
     let raf = 0;
 
+    const gridSize = getGridSize(settings.quality);
     const simplex = createNoise2D();
-    const totalSize = CONFIG.gridSize * CONFIG.spacing;
+    const totalSize = gridSize * CONFIG.spacing;
     const offset = totalSize / 2;
 
     function getTerrainData(i: number, j: number): { height: number; isWater: boolean } {
-      const normI = i / CONFIG.gridSize;
-      const normJ = j / CONFIG.gridSize;
+      const normI = i / gridSize;
+      const normJ = j / gridSize;
 
       // Distance from center for mountain
       const cx = normI - 0.5;
@@ -257,15 +263,15 @@ export default function OceanMountain({ settings }: Props) {
     controlsRef.current = controls;
 
     // Generate terrain
-    const count = CONFIG.gridSize * CONFIG.gridSize;
+    const count = gridSize * gridSize;
     const positions = new Float32Array(count * 3);
     const heights = new Float32Array(count);
     const randoms = new Float32Array(count);
     const isWater = new Float32Array(count);
 
     let k = 0;
-    for (let i = 0; i < CONFIG.gridSize; i++) {
-      for (let j = 0; j < CONFIG.gridSize; j++) {
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
         const x = i * CONFIG.spacing - offset;
         const z = j * CONFIG.spacing - offset;
         const data = getTerrainData(i, j);

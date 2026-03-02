@@ -5,12 +5,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { type ParticleSettings, THEMES } from './SettingsPanel';
 
-// Sphere surface (Fibonacci lattice) + inner shell layers + orbiting ring
-const SURFACE_COUNT = 180_000;
-const INNER_COUNT = 60_000;
-const RING_COUNT = 30_000;
-const TOTAL = SURFACE_COUNT + INNER_COUNT + RING_COUNT;
 const RADIUS = 60;
+
+function getCounts(quality: string) {
+  if (quality === 'low')    return { surface: 40_000, inner: 20_000, ring: 10_000 };
+  if (quality === 'medium') return { surface: 110_000, inner: 35_000, ring: 18_000 };
+  return                           { surface: 180_000, inner: 60_000, ring: 30_000 };
+}
 
 const vertexShader = /* glsl */ `
   attribute float aLayer;   // 0 = surface, 1 = inner, 2 = ring
@@ -179,6 +180,9 @@ export default function ParticleBall({ settings }: Props) {
     const el = mountRef.current;
     if (!el) return;
     let raf = 0;
+
+    const { surface: SURFACE_COUNT, inner: INNER_COUNT, ring: RING_COUNT } = getCounts(settings.quality);
+    const TOTAL = SURFACE_COUNT + INNER_COUNT + RING_COUNT;
 
     const positions = new Float32Array(TOTAL * 3);
     const layers    = new Float32Array(TOTAL);
