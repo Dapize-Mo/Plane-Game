@@ -6,15 +6,26 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createNoise2D } from 'simplex-noise';
 import { type ParticleSettings, THEMES } from './SettingsPanel';
 
+// Island definitions: [normX, normZ, gaussianRadius, heightMultiplier]
+// 8 possible island positions; islandCount selects the first N
+const ISLAND_DEFS = [
+  { x: 0.50, z: 0.50, r: 0.085, h: 1.00 }, // main island – center
+  { x: 0.26, z: 0.30, r: 0.055, h: 0.68 }, // NW island
+  { x: 0.72, z: 0.68, r: 0.063, h: 0.74 }, // SE island
+  { x: 0.34, z: 0.74, r: 0.042, h: 0.50 }, // S island
+  { x: 0.70, z: 0.26, r: 0.038, h: 0.44 }, // NE island
+  { x: 0.16, z: 0.60, r: 0.030, h: 0.35 }, // W tiny
+  { x: 0.83, z: 0.44, r: 0.028, h: 0.30 }, // E tiny
+  { x: 0.55, z: 0.13, r: 0.032, h: 0.38 }, // N tiny
+];
+
 const CONFIG = {
   spacing: 0.7,
-  waterLevel: 2.0,
-  mountainPeakHeight: 110.0,
-  mountainRadius: 0.18,
-  noiseFreq: 0.02,
+  waterLevel: 1.8,
+  peakHeight: 62.0,   // max island peak height
+  noiseFreq: 0.022,
   baseSize: 1.8,
-  waveAmplitude: 3.5,
-  waveFreq: 0.04,
+  waveAmplitude: 2.8,
 } as const;
 
 function getGridSize(quality: string) {
@@ -39,31 +50,30 @@ const vertexShader = /* glsl */ `
   uniform float uFogFar;
 
   void main() {
-    vHeight = aHeight / uMaxHeight;
-    vRandom = aRandom;
-    vIsWater = aIsWater;
+    vHeight   = aHeight / uMaxHeight;
+    vRandom   = aRandom;
+    vIsWater  = aIsWater;
 
     vec3 pos = position;
 
-    // Ocean wave animation for water particles
     if (aIsWater > 0.5) {
-      float wave1 = sin(uTime * 0.6 * uAnimSpeed + pos.x * 0.03 + pos.z * 0.02) * 2.5;
-      float wave2 = sin(uTime * 0.4 * uAnimSpeed + pos.x * 0.015 - pos.z * 0.025) * 1.5;
-      float wave3 = cos(uTime * 0.3 * uAnimSpeed + pos.x * 0.008 + pos.z * 0.01) * 1.0;
-      pos.y += (wave1 + wave2 + wave3) * 0.5;
+      // Ocean wave animation – gentle, multi-frequency
+      float wave1 = sin(uTime * 0.55 * uAnimSpeed + pos.x * 0.025 + pos.z * 0.018) * 2.2;
+      float wave2 = sin(uTime * 0.38 * uAnimSpeed + pos.x * 0.012 - pos.z * 0.022) * 1.4;
+      float wave3 = cos(uTime * 0.28 * uAnimSpeed + pos.x * 0.007 + pos.z * 0.009) * 0.8;
+      pos.y += (wave1 + wave2 + wave3) * 0.45;
     } else {
-      // Mountain breathing — subtle
-      float breathe = sin(uTime * 0.3 * uAnimSpeed + pos.x * 0.01 + pos.z * 0.01) * 0.5 + 0.5;
-      pos.y += breathe * vHeight * 1.5;
+      // Island breathing – subtle
+      float breathe = sin(uTime * 0.28 * uAnimSpeed + pos.x * 0.012 + pos.z * 0.012) * 0.5 + 0.5;
+      pos.y += breathe * vHeight * 1.2;
     }
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
 
-    float pulse = 1.0 + sin(uTime * 0.8 * uAnimSpeed + aRandom * 6.28) * 0.12 * vHeight;
-    float heightSize = 1.0 + vHeight * 1.2;
-    // Water particles slightly smaller
-    float waterScale = aIsWater > 0.5 ? 0.7 : 1.0;
-    float baseSize = ${CONFIG.baseSize.toFixed(1)} * uParticleSize * waterScale;
+    float pulse      = 1.0 + sin(uTime * 0.75 * uAnimSpeed + aRandom * 6.28) * 0.10 * vHeight;
+    float heightSize = 1.0 + vHeight * 1.3;
+    float waterScale = aIsWater > 0.5 ? 0.65 : 1.0;
+    float baseSize   = ${CONFIG.baseSize.toFixed(1)} * uParticleSize * waterScale;
     gl_PointSize = baseSize * heightSize * pulse * (300.0 / -mvPos.z);
 
     gl_Position = projectionMatrix * mvPos;
@@ -89,45 +99,41 @@ const fragmentShader = /* glsl */ `
 
   void main() {
     vec2 center = gl_PointCoord - 0.5;
-    float dist = length(center);
+    float dist  = length(center);
     if (dist > 0.5) discard;
 
     float alpha = 1.0 - smoothstep(0.15, 0.5, dist);
 
     vec3 color;
-    float h = vHeight;
 
     if (vIsWater > 0.5) {
-      // Water uses lower two colors with shimmer
-      color = mix(uColorLow, uColorMid, 0.3 + 0.7 * sin(uTime * 0.5 * uAnimSpeed + vRandom * 10.0) * 0.5 + 0.5);
-      // Specular highlights on water
-      float spec = pow(max(0.0, sin(uTime * 0.8 * uAnimSpeed + vRandom * 20.0)), 8.0);
-      color += uColorHigh * spec * 0.3;
-      alpha *= 0.5;
+      // Water: shimmer between low and mid with specular highlights
+      float shimmer = sin(uTime * 0.45 * uAnimSpeed + vRandom * 10.0) * 0.5 + 0.5;
+      color = mix(uColorLow, uColorMid, 0.25 + 0.75 * shimmer);
+      float spec = pow(max(0.0, sin(uTime * 0.75 * uAnimSpeed + vRandom * 20.0)), 8.0);
+      color += uColorHigh * spec * 0.28;
+      alpha *= 0.48;
     } else {
-      // Mountain gradient
+      // Island: gradient from shore to peak
+      float h = vHeight;
       if (h < 0.25) {
         color = mix(uColorLow, uColorMid, h / 0.25);
-      } else if (h < 0.6) {
-        color = mix(uColorMid, uColorHigh, (h - 0.25) / 0.35);
+      } else if (h < 0.62) {
+        color = mix(uColorMid, uColorHigh, (h - 0.25) / 0.37);
       } else {
-        color = mix(uColorHigh, uColorPeak, (h - 0.6) / 0.4);
+        color = mix(uColorHigh, uColorPeak, (h - 0.62) / 0.38);
       }
-
-      float shimmer = sin(uTime * 1.2 * uAnimSpeed + vRandom * 40.0) * 0.5 + 0.5;
-      color += shimmer * 0.06 * h;
+      float shimmer = sin(uTime * 1.1 * uAnimSpeed + vRandom * 40.0) * 0.5 + 0.5;
+      color += shimmer * 0.055 * h;
     }
 
-    // Inner glow
     float glow = 1.0 - smoothstep(0.0, 0.4, dist);
-    color += glow * 0.12 * h;
+    color += glow * 0.10 * vHeight;
 
     color *= uBrightness;
-
-    // Fog
-    color = mix(color, uBgColor, vFog);
+    color  = mix(color, uBgColor, vFog);
     alpha *= (1.0 - vFog * 0.9);
-    alpha *= 0.6 + 0.4 * h;
+    alpha *= 0.6 + 0.4 * vHeight;
 
     gl_FragColor = vec4(color, alpha);
   }
@@ -138,29 +144,28 @@ interface Props {
 }
 
 export default function OceanMountain({ settings }: Props) {
-  const mountRef = useRef<HTMLDivElement>(null);
+  const mountRef    = useRef<HTMLDivElement>(null);
   const uniformsRef = useRef<Record<string, { value: unknown }> | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const bgColorRef = useRef<THREE.Color | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
+  const bgColorRef  = useRef<THREE.Color | null>(null);
+  const sceneRef    = useRef<THREE.Scene | null>(null);
 
-  // Update uniforms reactively
+  // Reactive uniform updates
   useEffect(() => {
-    const u = uniformsRef.current;
+    const u    = uniformsRef.current;
     const ctrl = controlsRef.current;
     if (!u) return;
 
     const theme = THEMES[settings.theme] || THEMES.mono;
-
-    u.uBrightness.value = settings.brightness;
+    u.uBrightness.value   = settings.brightness;
     u.uParticleSize.value = settings.particleSize;
-    u.uAnimSpeed.value = settings.animSpeed;
-    u.uFogNear.value = settings.fogNear;
-    u.uFogFar.value = settings.fogFar;
-    u.uColorLow.value = new THREE.Vector3(...theme.colorLow);
-    u.uColorMid.value = new THREE.Vector3(...theme.colorMid);
-    u.uColorHigh.value = new THREE.Vector3(...theme.colorHigh);
-    u.uColorPeak.value = new THREE.Vector3(...theme.colorPeak);
+    u.uAnimSpeed.value    = settings.animSpeed;
+    u.uFogNear.value      = settings.fogNear;
+    u.uFogFar.value       = settings.fogFar;
+    u.uColorLow.value     = new THREE.Vector3(...theme.colorLow);
+    u.uColorMid.value     = new THREE.Vector3(...theme.colorMid);
+    u.uColorHigh.value    = new THREE.Vector3(...theme.colorHigh);
+    u.uColorPeak.value    = new THREE.Vector3(...theme.colorPeak);
 
     const newBg = new THREE.Color(theme.bg[0], theme.bg[1], theme.bg[2]);
     u.uBgColor.value = new THREE.Vector3(newBg.r, newBg.g, newBg.b);
@@ -169,157 +174,143 @@ export default function OceanMountain({ settings }: Props) {
       bgColorRef.current.copy(newBg);
       sceneRef.current.background = bgColorRef.current;
     }
-
-    if (ctrl) {
-      ctrl.autoRotateSpeed = settings.autoRotateSpeed;
-    }
+    if (ctrl) ctrl.autoRotateSpeed = settings.autoRotateSpeed;
   }, [settings]);
 
-  // Scene setup — runs once per mount (remounts when quality key changes)
+  // Scene setup — remounts when quality or islandCount changes
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
 
     let raf = 0;
 
-    const gridSize = getGridSize(settings.quality);
-    const simplex = createNoise2D();
-    const totalSize = gridSize * CONFIG.spacing;
-    const offset = totalSize / 2;
+    const gridSize   = getGridSize(settings.quality);
+    const islandCount = Math.max(2, Math.min(8, Math.round(settings.islandCount)));
+    const islands     = ISLAND_DEFS.slice(0, islandCount);
+    const simplex     = createNoise2D();
+    const totalSize   = gridSize * CONFIG.spacing;
+    const offset      = totalSize / 2;
 
     function getTerrainData(i: number, j: number): { height: number; isWater: boolean } {
       const normI = i / gridSize;
       const normJ = j / gridSize;
+      const nx    = i * CONFIG.noiseFreq;
+      const nz    = j * CONFIG.noiseFreq;
 
-      // Distance from center for mountain
-      const cx = normI - 0.5;
-      const cz = normJ - 0.5;
-      const distFromCenter = Math.sqrt(cx * cx + cz * cz);
-
-      // Mountain shape — gaussian + noise for organic shape
-      const nx = i * CONFIG.noiseFreq;
-      const nz = j * CONFIG.noiseFreq;
-
+      // Fractal noise (used only to shape island surfaces)
       let noiseVal = (simplex(nx, nz) + 1) / 2;
       noiseVal += simplex(nx * 2, nz * 2) * 0.5;
       noiseVal += simplex(nx * 4, nz * 4) * 0.25;
       noiseVal += simplex(nx * 8, nz * 8) * 0.125;
       noiseVal = noiseVal / 1.875;
 
-      // Angular variation for non-circular mountain
-      const angle = Math.atan2(cz, cx);
-      const angleNoise = simplex(Math.cos(angle) * 3, Math.sin(angle) * 3) * 0.04;
-      const effectiveRadius = CONFIG.mountainRadius + angleNoise;
+      // Accumulate height from all islands (take the max)
+      let maxHeight = 0;
+      for (const island of islands) {
+        const cx   = normI - island.x;
+        const cz   = normJ - island.z;
+        const dist = Math.sqrt(cx * cx + cz * cz);
 
-      // Mountain influence
-      const mountainFalloff = Math.exp(-(distFromCenter * distFromCenter) / (2 * effectiveRadius * effectiveRadius));
-      const mountainHeight = mountainFalloff * noiseVal * CONFIG.mountainPeakHeight;
+        // Organic radius variation by angle
+        const angle      = Math.atan2(cz, cx);
+        const angleNoise = simplex(Math.cos(angle) * 3.5, Math.sin(angle) * 3.5) * 0.018;
+        const r          = island.r + angleNoise;
 
-      // Secondary smaller peak offset from center
-      const cx2 = normI - 0.38;
-      const cz2 = normJ - 0.6;
-      const dist2 = Math.sqrt(cx2 * cx2 + cz2 * cz2);
-      const secondaryPeak = Math.exp(-(dist2 * dist2) / (2 * 0.07 * 0.07)) * noiseVal * CONFIG.mountainPeakHeight * 0.4;
+        // Sharp gaussian for island peak
+        const gaussian = Math.exp(-(dist * dist) / (2 * r * r));
+        const h        = gaussian * noiseVal * CONFIG.peakHeight * island.h;
+        if (h > maxHeight) maxHeight = h;
+      }
 
-      const totalHeight = mountainHeight + secondaryPeak;
-
-      if (totalHeight < CONFIG.waterLevel) {
-        // Water level with subtle noise variation
-        const waterNoise = simplex(nx * 0.5, nz * 0.5) * 0.5;
+      if (maxHeight < CONFIG.waterLevel) {
+        // Flat ocean with tiny depth variation
+        const waterNoise = simplex(nx * 0.3, nz * 0.3) * 0.4;
         return { height: CONFIG.waterLevel + waterNoise, isWater: true };
       }
 
-      return { height: totalHeight, isWater: false };
+      return { height: maxHeight, isWater: false };
     }
 
     // Scene
-    const scene = new THREE.Scene();
+    const scene     = new THREE.Scene();
     const initTheme = THEMES[settings.theme] || THEMES.mono;
-    const bgColor = new THREE.Color(initTheme.bg[0], initTheme.bg[1], initTheme.bg[2]);
-    scene.background = bgColor;
+    const bgColor   = new THREE.Color(initTheme.bg[0], initTheme.bg[1], initTheme.bg[2]);
+    scene.background   = bgColor;
     bgColorRef.current = bgColor;
-    sceneRef.current = scene;
+    sceneRef.current   = scene;
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 20000);
-    camera.position.set(-100, 120, 220);
+    camera.position.set(-80, 100, 210);
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(renderer.domElement);
 
-    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.enableDamping   = true;
+    controls.dampingFactor   = 0.05;
     controls.screenSpacePanning = true;
-    controls.autoRotate = true;
+    controls.autoRotate      = true;
     controls.autoRotateSpeed = settings.autoRotateSpeed;
-    controls.maxDistance = 400;
-    controls.minDistance = 30;
-    controls.target.set(0, 15, 0);
+    controls.maxDistance     = 420;
+    controls.minDistance     = 30;
+    controls.target.set(0, 8, 0);
     controlsRef.current = controls;
 
     // Generate terrain
-    const count = gridSize * gridSize;
+    const count     = gridSize * gridSize;
     const positions = new Float32Array(count * 3);
-    const heights = new Float32Array(count);
-    const randoms = new Float32Array(count);
-    const isWater = new Float32Array(count);
+    const heights   = new Float32Array(count);
+    const randoms   = new Float32Array(count);
+    const isWater   = new Float32Array(count);
 
     let k = 0;
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
-        const x = i * CONFIG.spacing - offset;
-        const z = j * CONFIG.spacing - offset;
+        const x    = i * CONFIG.spacing - offset;
+        const z    = j * CONFIG.spacing - offset;
         const data = getTerrainData(i, j);
 
-        positions[k * 3] = x;
+        positions[k * 3]     = x;
         positions[k * 3 + 1] = data.height;
         positions[k * 3 + 2] = z;
-        heights[k] = data.height;
-        randoms[k] = Math.random();
-        isWater[k] = data.isWater ? 1.0 : 0.0;
+        heights[k]  = data.height;
+        randoms[k]  = Math.random();
+        isWater[k]  = data.isWater ? 1.0 : 0.0;
         k++;
       }
     }
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('aHeight', new THREE.BufferAttribute(heights, 1));
-    geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute('aHeight',  new THREE.BufferAttribute(heights, 1));
+    geometry.setAttribute('aRandom',  new THREE.BufferAttribute(randoms, 1));
     geometry.setAttribute('aIsWater', new THREE.BufferAttribute(isWater, 1));
 
     const uniforms = {
-      uTime: { value: 0 },
-      uMaxHeight: { value: CONFIG.mountainPeakHeight },
-      uBrightness: { value: settings.brightness },
+      uTime:         { value: 0 },
+      uMaxHeight:    { value: CONFIG.peakHeight },
+      uBrightness:   { value: settings.brightness },
       uParticleSize: { value: settings.particleSize },
-      uAnimSpeed: { value: settings.animSpeed },
-      uFogNear: { value: settings.fogNear },
-      uFogFar: { value: settings.fogFar },
-      uBgColor: { value: new THREE.Vector3(bgColor.r, bgColor.g, bgColor.b) },
-      uColorLow: { value: new THREE.Vector3(...initTheme.colorLow) },
-      uColorMid: { value: new THREE.Vector3(...initTheme.colorMid) },
-      uColorHigh: { value: new THREE.Vector3(...initTheme.colorHigh) },
-      uColorPeak: { value: new THREE.Vector3(...initTheme.colorPeak) },
+      uAnimSpeed:    { value: settings.animSpeed },
+      uFogNear:      { value: settings.fogNear },
+      uFogFar:       { value: settings.fogFar },
+      uBgColor:      { value: new THREE.Vector3(bgColor.r, bgColor.g, bgColor.b) },
+      uColorLow:     { value: new THREE.Vector3(...initTheme.colorLow) },
+      uColorMid:     { value: new THREE.Vector3(...initTheme.colorMid) },
+      uColorHigh:    { value: new THREE.Vector3(...initTheme.colorHigh) },
+      uColorPeak:    { value: new THREE.Vector3(...initTheme.colorPeak) },
     };
     uniformsRef.current = uniforms;
 
     const material = new THREE.ShaderMaterial({
-      vertexShader,
-      fragmentShader,
-      uniforms,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      vertexShader, fragmentShader, uniforms,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
 
     scene.add(new THREE.Points(geometry, material));
 
-    // Resize
     const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -327,8 +318,7 @@ export default function OceanMountain({ settings }: Props) {
     };
     window.addEventListener('resize', onResize);
 
-    // Animate
-    const clock = new THREE.Clock();
+    const clock   = new THREE.Clock();
     const animate = () => {
       raf = requestAnimationFrame(animate);
       uniforms.uTime.value = clock.getElapsedTime();
@@ -346,11 +336,11 @@ export default function OceanMountain({ settings }: Props) {
       material.dispose();
       uniformsRef.current = null;
       controlsRef.current = null;
-      bgColorRef.current = null;
-      sceneRef.current = null;
+      bgColorRef.current  = null;
+      sceneRef.current    = null;
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [settings.quality, settings.islandCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={mountRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }} />;
 }

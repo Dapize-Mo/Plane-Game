@@ -13,9 +13,21 @@ export interface ParticleSettings {
   fogFar: number;
   autoRotateSpeed: number;
   quality: Quality;
+  // Scene-specific
+  islandCount: number;   // ocean: 2-8
+  planetCount: number;   // galaxy: 0-6
+  gravity: number;       // ball: 0-3
+  bounciness: number;    // ball: 0.1-0.99
 }
 
-const THEMES: Record<string, { label: string; colorLow: [number, number, number]; colorMid: [number, number, number]; colorHigh: [number, number, number]; colorPeak: [number, number, number]; bg: [number, number, number] }> = {
+const THEMES: Record<string, {
+  label: string;
+  colorLow: [number, number, number];
+  colorMid: [number, number, number];
+  colorHigh: [number, number, number];
+  colorPeak: [number, number, number];
+  bg: [number, number, number];
+}> = {
   arctic: {
     label: 'Arctic',
     colorLow: [0.02, 0.02, 0.06],
@@ -77,14 +89,30 @@ const DEFAULTS: ParticleSettings = {
   fogFar: 450,
   autoRotateSpeed: 0.12,
   quality: 'high',
+  islandCount: 4,
+  planetCount: 3,
+  gravity: 1.0,
+  bounciness: 0.75,
 };
+
+export { DEFAULTS };
 
 interface Props {
   settings: ParticleSettings;
   onChange: (s: ParticleSettings) => void;
+  sceneId: string;
+  onCopyToAll: () => void;
 }
 
-export default function SettingsPanel({ settings, onChange }: Props) {
+const SCENE_LABELS: Record<string, string> = {
+  terrain: 'Terrain',
+  ocean: 'Ocean',
+  ball: 'Ball',
+  galaxy: 'Galaxy',
+  vortex: 'Vortex',
+};
+
+export default function SettingsPanel({ settings, onChange, sceneId, onCopyToAll }: Props) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -105,7 +133,6 @@ export default function SettingsPanel({ settings, onChange }: Props) {
 
   return (
     <div ref={panelRef} style={{ position: 'absolute', top: 20, right: 20, zIndex: 50 }}>
-      {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -123,50 +150,49 @@ export default function SettingsPanel({ settings, onChange }: Props) {
         Settings
       </button>
 
-      {/* Panel */}
       {open && (
         <div style={{
           position: 'absolute',
           top: 40,
           right: 0,
-          width: 288,
+          width: 292,
           border: '1px solid rgba(255,255,255,0.1)',
-          background: 'rgba(0,0,0,0.75)',
+          background: 'rgba(0,0,0,0.82)',
           backdropFilter: 'blur(12px)',
           borderRadius: 8,
           padding: 16,
           boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+          maxHeight: 'calc(100vh - 80px)',
+          overflowY: 'auto',
         }}>
+
+          {/* Scene label */}
+          <div style={{ marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Scene</span>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{SCENE_LABELS[sceneId] ?? sceneId}</span>
+          </div>
+
           {/* Theme selector */}
           <div style={{ marginBottom: 16 }}>
             <label style={{
-              color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 500,
+              color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: 500,
               letterSpacing: '0.15em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8,
-            }}>
-              Theme
-            </label>
+            }}>Theme</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
               {Object.entries(THEMES).map(([key, t]) => (
                 <button
                   key={key}
                   onClick={() => set('theme', key)}
                   style={{
-                    fontSize: 10,
-                    padding: '6px 8px',
-                    borderRadius: 4,
-                    cursor: 'pointer',
+                    fontSize: 10, padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
                     border: settings.theme === key ? '1px solid rgba(255,255,255,0.25)' : '1px solid transparent',
                     background: settings.theme === key ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
                     color: settings.theme === key ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
+                    fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
                   }}
                 >
                   <span style={{
-                    display: 'inline-block',
-                    width: 8, height: 8, borderRadius: '50%',
+                    display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
                     backgroundColor: `rgb(${t.colorHigh.map(c => Math.round(c * 255)).join(',')})`,
                     flexShrink: 0,
                   }} />
@@ -179,11 +205,9 @@ export default function SettingsPanel({ settings, onChange }: Props) {
           {/* Quality selector */}
           <div style={{ marginBottom: 16 }}>
             <label style={{
-              color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 500,
+              color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: 500,
               letterSpacing: '0.15em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8,
-            }}>
-              Quality
-            </label>
+            }}>Quality</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
               {([
                 { id: 'low',    label: 'Low',    hint: '~80–250k' },
@@ -211,40 +235,87 @@ export default function SettingsPanel({ settings, onChange }: Props) {
             </p>
           </div>
 
-          {/* Sliders */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Slider label="Brightness" value={settings.brightness} min={0.2} max={2.0} step={0.05} onChange={v => set('brightness', v)} />
-            <Slider label="Particle Size" value={settings.particleSize} min={0.3} max={3.0} step={0.1} onChange={v => set('particleSize', v)} />
-            <Slider label="Anim Speed" value={settings.animSpeed} min={0} max={3.0} step={0.1} onChange={v => set('animSpeed', v)} />
-            <Slider label="Fog Near" value={settings.fogNear} min={30} max={300} step={5} onChange={v => set('fogNear', v)} />
-            <Slider label="Fog Far" value={settings.fogFar} min={200} max={800} step={10} onChange={v => set('fogFar', v)} />
-            <Slider label="Rotate Speed" value={settings.autoRotateSpeed} min={0} max={1.0} step={0.02} onChange={v => set('autoRotateSpeed', v)} />
+          {/* Common sliders */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+            <Slider label="Brightness"    value={settings.brightness}       min={0.2} max={2.0}  step={0.05} onChange={v => set('brightness', v)} />
+            <Slider label="Particle Size" value={settings.particleSize}     min={0.3} max={3.0}  step={0.1}  onChange={v => set('particleSize', v)} />
+            <Slider label="Anim Speed"    value={settings.animSpeed}        min={0}   max={3.0}  step={0.1}  onChange={v => set('animSpeed', v)} />
+            <Slider label="Fog Near"      value={settings.fogNear}          min={30}  max={500}  step={5}    onChange={v => set('fogNear', v)} />
+            <Slider label="Fog Far"       value={settings.fogFar}           min={100} max={1400} step={10}   onChange={v => set('fogFar', v)} />
+            <Slider label="Rotate Speed"  value={settings.autoRotateSpeed}  min={0}   max={1.0}  step={0.02} onChange={v => set('autoRotateSpeed', v)} />
           </div>
 
-          {/* Reset */}
-          <button
-            onClick={() => onChange({ ...DEFAULTS })}
-            style={{
-              width: '100%', fontSize: 10, color: 'rgba(255,255,255,0.25)', cursor: 'pointer',
-              padding: '6px 0', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4,
-              background: 'transparent', marginTop: 12, fontFamily: 'inherit',
-            }}
-          >
-            Reset to Defaults
-          </button>
+          {/* Scene-specific settings */}
+          {sceneId === 'ocean' && (
+            <div style={{ marginBottom: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
+              <label style={{ color: 'rgba(255,255,255,0.22)', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
+                Ocean Settings
+              </label>
+              <Slider label="Island Count" value={settings.islandCount} min={2} max={8} step={1} onChange={v => set('islandCount', v)} hint="reloads scene" />
+            </div>
+          )}
+
+          {sceneId === 'galaxy' && (
+            <div style={{ marginBottom: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
+              <label style={{ color: 'rgba(255,255,255,0.22)', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
+                Galaxy Settings
+              </label>
+              <Slider label="Planet Count" value={settings.planetCount} min={0} max={6} step={1} onChange={v => set('planetCount', v)} hint="reloads scene" />
+            </div>
+          )}
+
+          {sceneId === 'ball' && (
+            <div style={{ marginBottom: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
+              <label style={{ color: 'rgba(255,255,255,0.22)', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
+                Physics Settings
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Slider label="Gravity"     value={settings.gravity}     min={0}   max={3.0}  step={0.05} onChange={v => set('gravity', v)} />
+                <Slider label="Bounciness"  value={settings.bounciness}  min={0.1} max={0.99} step={0.01} onChange={v => set('bounciness', v)} />
+              </div>
+            </div>
+          )}
+
+          {/* Per-scene management */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={onCopyToAll}
+              style={{
+                width: '100%', fontSize: 10, color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
+                padding: '7px 0', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4,
+                background: 'rgba(255,255,255,0.04)', fontFamily: 'inherit',
+              }}
+            >
+              Apply settings to all scenes
+            </button>
+            <button
+              onClick={() => onChange({ ...DEFAULTS })}
+              style={{
+                width: '100%', fontSize: 10, color: 'rgba(255,255,255,0.2)', cursor: 'pointer',
+                padding: '6px 0', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4,
+                background: 'transparent', fontFamily: 'inherit',
+              }}
+            >
+              Reset to defaults
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function Slider({ label, value, min, max, step, onChange }: {
-  label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
+function Slider({ label, value, min, max, step, onChange, hint }: {
+  label: string; value: number; min: number; max: number; step: number;
+  onChange: (v: number) => void; hint?: string;
 }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>{label}</span>
+        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>
+          {label}
+          {hint && <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 9, marginLeft: 5 }}>({hint})</span>}
+        </span>
         <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>
           {value.toFixed(step < 1 ? 2 : 0)}
         </span>
@@ -255,11 +326,9 @@ function Slider({ label, value, min, max, step, onChange }: {
         max={max}
         step={step}
         value={value}
-        onChange={e => onChange(parseFloat(e.target.value))}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(parseFloat(e.target.value))}
         style={{ width: '100%', height: 4, cursor: 'pointer', accentColor: 'rgba(255,255,255,0.5)' }}
       />
     </div>
   );
 }
-
-export { DEFAULTS };
