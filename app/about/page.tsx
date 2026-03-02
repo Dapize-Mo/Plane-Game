@@ -44,28 +44,41 @@ export default function AboutPage() {
           About
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 13, lineHeight: 1.7, marginBottom: 28 }}>
-          Particle Thing is a collection of procedural particle landscapes. Each world is built from 1,000,000
-          glowing particles shaped by layered simplex noise, rendered with custom GLSL shaders and additive blending.
+          Particle Thing is a collection of five procedural particle worlds, each built with custom GLSL shaders,
+          additive blending, and real-time animation. Switch between them with Tab or the buttons at the bottom.
         </p>
 
-        {/* Scenes */}
+        {/* Worlds */}
         <div style={sectionStyle}>
           <h2 style={headingStyle}>Worlds</h2>
-          <div style={{ marginBottom: 14 }}>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Terrain</p>
-            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, lineHeight: 1.6 }}>
-              A sweeping landscape with a central mountain range, a deep sinusoidal trench, and rolling noise-driven hills.
-              Particles breathe vertically and shimmer at elevation.
-            </p>
-          </div>
-          <div>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Ocean</p>
-            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, lineHeight: 1.6 }}>
-              An island mountain rises from an animated ocean. Water particles undulate with layered sine waves while
-              the mountain peak uses Gaussian falloff with angular noise for an organic silhouette. A secondary smaller
-              peak adds depth.
-            </p>
-          </div>
+
+          {[
+            {
+              title: 'Terrain',
+              body: 'A sweeping landscape with a central mountain range, a deep sinusoidal trench, and rolling noise-driven hills. Particles breathe vertically and shimmer at elevation. Built from a 1000×1000 Fibonacci grid with 4-octave simplex FBM.',
+            },
+            {
+              title: 'Ocean',
+              body: 'An island mountain rises from an animated ocean. Water particles undulate with three layered sine waves while the mountain peak uses Gaussian falloff with angular noise. A secondary smaller peak adds depth.',
+            },
+            {
+              title: 'Ball',
+              body: 'A glowing particle sphere: 180k particles on a Fibonacci surface lattice, 60k in an inner shell, and 30k spread across three tilted orbital rings. The surface pulses with radial breathing; electric arc shimmer races across the face; the rings precess slowly.',
+            },
+            {
+              title: 'Galaxy',
+              body: 'A 4-arm logarithmic spiral galaxy with 480k arm particles distributed in log-density (denser near center), 80k in a flattened core bulge, and 50k sparse halo stars. Arms rotate with differential speed — inner faster than outer.',
+            },
+            {
+              title: 'Vortex',
+              body: 'A funnel-shaped vortex with 150k spiral particles that drift upward and accelerate as they ascend, 80k debris particles flung outward in slow orbits, and 20k white-hot lightning streamers that flicker along the central axis.',
+            },
+          ].map(({ title, body }, i, arr) => (
+            <div key={title} style={{ marginBottom: i < arr.length - 1 ? 16 : 0 }}>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{title}</p>
+              <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, lineHeight: 1.6 }}>{body}</p>
+            </div>
+          ))}
         </div>
 
         {/* Controls */}
@@ -91,7 +104,7 @@ export default function AboutPage() {
             ['R', 'Reset to default settings'],
             ['Space', 'Toggle auto-rotation'],
             ['F', 'Toggle FPS counter'],
-            ['Tab', 'Switch between worlds'],
+            ['Tab', 'Next world'],
           ].map(([key, desc]) => (
             <div key={key} style={rowStyle}>
               <span style={{
@@ -137,6 +150,12 @@ export default function AboutPage() {
               'Ocean wave simulation',
               'Water specular highlights',
               'Gaussian mountain peaks',
+              'Electric arc surface shimmer',
+              'Tilted orbital ring precession',
+              'Differential galaxy rotation',
+              'Rare bright star flash',
+              'Vortex upward drift loop',
+              'Lightning streamer flicker',
               '6 real-time color themes',
               'Settings persistence',
             ].map(effect => (

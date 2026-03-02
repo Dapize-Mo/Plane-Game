@@ -6,17 +6,23 @@ import Link from 'next/link';
 import SettingsPanel, { DEFAULTS, THEMES, type ParticleSettings } from '@/components/SettingsPanel';
 
 const MonochromeTerrain = dynamic(() => import('@/components/MonochromeTerrain'), { ssr: false });
-const OceanMountain = dynamic(() => import('@/components/OceanMountain'), { ssr: false });
+const OceanMountain     = dynamic(() => import('@/components/OceanMountain'),     { ssr: false });
+const ParticleBall      = dynamic(() => import('@/components/ParticleBall'),      { ssr: false });
+const Galaxy            = dynamic(() => import('@/components/Galaxy'),            { ssr: false });
+const Vortex            = dynamic(() => import('@/components/Vortex'),            { ssr: false });
 
 const SCENES = [
-  { id: 'terrain', label: 'Terrain', desc: 'Mountains, trench, rolling hills' },
-  { id: 'ocean', label: 'Ocean', desc: 'Island mountain rising from the sea' },
+  { id: 'terrain',  label: 'Terrain',  desc: 'Mountains, trench, rolling hills' },
+  { id: 'ocean',    label: 'Ocean',    desc: 'Island mountain rising from the sea' },
+  { id: 'ball',     label: 'Ball',     desc: 'Glowing particle sphere with electric rings' },
+  { id: 'galaxy',   label: 'Galaxy',   desc: '4-arm spiral galaxy with core bulge' },
+  { id: 'vortex',   label: 'Vortex',   desc: 'Funnel vortex with lightning streamers' },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]['id'];
 
 const STORAGE_KEY = 'particle-settings';
-const SCENE_KEY = 'particle-scene';
+const SCENE_KEY   = 'particle-scene';
 
 function loadSettings(): ParticleSettings {
   if (typeof window === 'undefined') return { ...DEFAULTS };
@@ -41,27 +47,25 @@ function loadSettings(): ParticleSettings {
 function loadScene(): SceneId {
   if (typeof window === 'undefined') return 'terrain';
   const stored = localStorage.getItem(SCENE_KEY);
-  if (stored === 'terrain' || stored === 'ocean') return stored;
+  const valid = SCENES.map(s => s.id) as string[];
+  if (stored && valid.includes(stored)) return stored as SceneId;
   return 'terrain';
 }
 
 export default function Home() {
   const [settings, setSettings] = useState<ParticleSettings>(() => loadSettings());
-  const [scene, setScene] = useState<SceneId>(() => loadScene());
-  const [showFps, setShowFps] = useState(false);
-  const [fps, setFps] = useState(0);
+  const [scene, setScene]       = useState<SceneId>(() => loadScene());
+  const [showFps, setShowFps]   = useState(false);
+  const [fps, setFps]           = useState(0);
 
-  // Persist settings
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
   }, [settings]);
 
-  // Persist scene
   useEffect(() => {
     try { localStorage.setItem(SCENE_KEY, scene); } catch {}
   }, [scene]);
 
-  // FPS counter
   useEffect(() => {
     if (!showFps) return;
     let frames = 0;
@@ -70,34 +74,29 @@ export default function Home() {
     const tick = () => {
       frames++;
       const now = performance.now();
-      if (now - last >= 1000) {
-        setFps(frames);
-        frames = 0;
-        last = now;
-      }
+      if (now - last >= 1000) { setFps(frames); frames = 0; last = now; }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [showFps]);
 
-  // Keyboard shortcuts
+  const sceneIds = SCENES.map(s => s.id);
   const themeKeys = Object.keys(THEMES);
+
   const handleKeyboard = useCallback((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
     switch (e.key.toLowerCase()) {
       case 'r':
         setSettings({ ...DEFAULTS });
         break;
-      case 't': {
+      case 't':
         setSettings(prev => {
-          const idx = themeKeys.indexOf(prev.theme);
+          const idx  = themeKeys.indexOf(prev.theme);
           const next = themeKeys[(idx + 1) % themeKeys.length];
           return { ...prev, theme: next };
         });
         break;
-      }
       case ' ':
         e.preventDefault();
         setSettings(prev => ({
@@ -110,10 +109,13 @@ export default function Home() {
         break;
       case 'tab':
         e.preventDefault();
-        setScene(prev => prev === 'terrain' ? 'ocean' : 'terrain');
+        setScene(prev => {
+          const idx  = sceneIds.indexOf(prev);
+          return sceneIds[(idx + 1) % sceneIds.length];
+        });
         break;
     }
-  }, [themeKeys]);
+  }, [themeKeys, sceneIds]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyboard);
@@ -125,32 +127,35 @@ export default function Home() {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', background: '#010108', overflow: 'hidden' }}>
 
-      {/* Render active scene */}
-      {scene === 'terrain' ? (
-        <MonochromeTerrain settings={settings} />
-      ) : (
-        <OceanMountain settings={settings} />
-      )}
+      {/* Active scene */}
+      {scene === 'terrain' && <MonochromeTerrain settings={settings} />}
+      {scene === 'ocean'   && <OceanMountain     settings={settings} />}
+      {scene === 'ball'    && <ParticleBall       settings={settings} />}
+      {scene === 'galaxy'  && <Galaxy             settings={settings} />}
+      {scene === 'vortex'  && <Vortex             settings={settings} />}
 
-      {/* Title overlay — top left */}
+      {/* Title — top left */}
       <div style={{ position: 'absolute', top: 20, left: 20, pointerEvents: 'none', zIndex: 50 }}>
         <h1 style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 500, letterSpacing: '0.3em', textTransform: 'uppercase', margin: 0 }}>
           Particle Thing
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 8, lineHeight: 1.6 }}>
-          1,000,000 Particles &bull; {currentScene.desc}
+          {scene === 'ball'   ? '270,000'
+            : scene === 'galaxy'  ? '610,000'
+            : scene === 'vortex' ? '250,000'
+            : '1,000,000'} Particles &bull; {currentScene.desc}
           <br />
           Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
         </p>
         <p style={{ color: 'rgba(255,255,255,0.1)', fontSize: 9, marginTop: 6, lineHeight: 1.5 }}>
-          T: Theme &bull; R: Reset &bull; Space: Pause &bull; F: FPS &bull; Tab: Switch Scene
+          T: Theme &bull; R: Reset &bull; Space: Pause &bull; F: FPS &bull; Tab: Next Scene
         </p>
       </div>
 
       {/* FPS counter */}
       {showFps && (
         <div style={{
-          position: 'absolute', top: 95, left: 20, zIndex: 50,
+          position: 'absolute', top: 100, left: 20, zIndex: 50,
           color: 'rgba(255,255,255,0.3)', fontSize: 10,
           fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace',
         }}>
@@ -169,8 +174,9 @@ export default function Home() {
           <button
             key={s.id}
             onClick={() => setScene(s.id)}
+            title={s.desc}
             style={{
-              fontSize: 11, padding: '6px 16px', borderRadius: 4,
+              fontSize: 11, padding: '6px 14px', borderRadius: 4,
               cursor: 'pointer', border: 'none', fontFamily: 'inherit',
               background: scene === s.id ? 'rgba(255,255,255,0.12)' : 'transparent',
               color: scene === s.id ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)',
@@ -184,29 +190,23 @@ export default function Home() {
 
       {/* Nav links */}
       <div style={{ position: 'absolute', top: 20, right: 100, zIndex: 50, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Link
-          href="/profile"
-          style={{
-            color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none',
-            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)',
-            padding: '6px 12px', borderRadius: 4,
-          }}
-        >
+        <Link href="/profile" style={{
+          color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none',
+          border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)',
+          padding: '6px 12px', borderRadius: 4,
+        }}>
           Profile
         </Link>
-        <Link
-          href="/about"
-          style={{
-            color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none',
-            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)',
-            padding: '6px 12px', borderRadius: 4,
-          }}
-        >
+        <Link href="/about" style={{
+          color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none',
+          border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)',
+          padding: '6px 12px', borderRadius: 4,
+        }}>
           About
         </Link>
       </div>
 
-      {/* Settings panel */}
+      {/* Settings */}
       <SettingsPanel settings={settings} onChange={setSettings} />
 
       {/* Credit */}
