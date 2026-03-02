@@ -13,18 +13,27 @@ const Vortex            = dynamic(() => import('@/components/Vortex'),          
 
 const SCENES = [
   { id: 'terrain', label: 'Terrain', desc: 'Mountains, trench, rolling hills' },
-  { id: 'ocean',   label: 'Ocean',   desc: 'Island mountain rising from the sea' },
-  { id: 'ball',    label: 'Ball',    desc: 'Glowing particle sphere with electric rings' },
-  { id: 'galaxy',  label: 'Galaxy',  desc: '4-arm spiral galaxy with core bulge' },
+  { id: 'ocean',   label: 'Ocean',   desc: 'Flat sea with scattered island peaks' },
+  { id: 'ball',    label: 'Ball',    desc: 'Physics ball — drag and throw' },
+  { id: 'galaxy',  label: 'Galaxy',  desc: 'Spiral galaxy with orbiting planets' },
   { id: 'vortex',  label: 'Vortex',  desc: 'Funnel vortex with lightning streamers' },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]['id'];
 
-const STORAGE_KEY = 'particle-settings';
-const SCENE_KEY   = 'particle-scene';
+// Per-scene storage keys
+const SCENE_STORAGE_KEY = (id: string) => `particle-settings-v2-${id}`;
+const SCENE_KEY = 'particle-scene-v2';
 
-/** Guess a good default quality based on device signals. Only used on first visit. */
+// Per-scene initial overrides (applied on first visit before any saved settings)
+const SCENE_INIT: Partial<Record<SceneId, Partial<ParticleSettings>>> = {
+  terrain: {},
+  ocean:   { fogNear: 80,  fogFar: 620,  islandCount: 4 },
+  ball:    { fogNear: 40,  fogFar: 320 },
+  galaxy:  { fogNear: 200, fogFar: 950, autoRotateSpeed: 0.08, planetCount: 3 },
+  vortex:  { fogNear: 80,  fogFar: 520 },
+};
+
 function detectQuality(): Quality {
   if (typeof window === 'undefined') return 'high';
   const isMobile = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
@@ -36,53 +45,83 @@ function detectQuality(): Quality {
   return 'high';
 }
 
-function loadSettings(): ParticleSettings {
-  if (typeof window === 'undefined') return { ...DEFAULTS };
+function loadSceneSettings(sceneId: SceneId): ParticleSettings {
+  const base: ParticleSettings = { ...DEFAULTS, ...(SCENE_INIT[sceneId] || {}) };
+  if (typeof window === 'undefined') return base;
+  if (!base.quality || base.quality === DEFAULTS.quality) {
+    base.quality = detectQuality();
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULTS, quality: detectQuality() };
+    const raw = localStorage.getItem(SCENE_STORAGE_KEY(sceneId));
+    if (!raw) return base;
     const parsed = JSON.parse(raw);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = { ...DEFAULTS };
-    for (const key of Object.keys(DEFAULTS)) {
+    const result: any = { ...base };
+    for (const key of Object.keys(base)) {
       if (key in parsed && typeof parsed[key] === typeof result[key]) {
         result[key] = parsed[key];
       }
     }
     if (!(result.theme in THEMES)) result.theme = DEFAULTS.theme;
-    if (!['low', 'medium', 'high'].includes(result.quality)) result.quality = DEFAULTS.quality;
+    if (!(['low', 'medium', 'high'] as string[]).includes(result.quality)) result.quality = base.quality;
     return result as ParticleSettings;
   } catch {
-    return { ...DEFAULTS };
+    return base;
   }
+}
+
+function loadAllSceneSettings(): Record<SceneId, ParticleSettings> {
+  const result = {} as Record<SceneId, ParticleSettings>;
+  for (const s of SCENES) {
+    result[s.id] = loadSceneSettings(s.id);
+  }
+  return result;
 }
 
 function loadScene(): SceneId {
   if (typeof window === 'undefined') return 'terrain';
   const stored = localStorage.getItem(SCENE_KEY);
-  const valid = SCENES.map(s => s.id) as string[];
+  const valid  = SCENES.map(s => s.id) as string[];
   if (stored && valid.includes(stored)) return stored as SceneId;
   return 'terrain';
 }
 
-// Approx particle counts per scene + quality for the info overlay
+// Scene key: forces remount when quality or scene-specific reload params change
+function getSceneKey(scene: SceneId, settings: ParticleSettings): string {
+  let key = `${scene}-${settings.quality}`;
+  if (scene === 'ocean')  key += `-${settings.islandCount}`;
+  if (scene === 'galaxy') key += `-${settings.planetCount}`;
+  return key;
+}
+
+// Approx particle counts per scene + quality
 const PARTICLE_COUNTS: Record<SceneId, Record<Quality, string>> = {
   terrain: { low: '250,000', medium: '562,500', high: '1,000,000' },
   ocean:   { low: '250,000', medium: '562,500', high: '1,000,000' },
-  ball:    { low: '90,000',  medium: '163,000', high: '270,000'   },
+  ball:    { low: '29,000',  medium: '73,000',  high: '144,000'   },
   galaxy:  { low: '160,000', medium: '360,000', high: '610,000'   },
   vortex:  { low: '82,000',  medium: '153,000', high: '250,000'   },
 };
 
 export default function Home() {
-  const [settings, setSettings] = useState<ParticleSettings>(() => loadSettings());
-  const [scene, setScene]       = useState<SceneId>(() => loadScene());
-  const [showFps, setShowFps]   = useState(false);
-  const [fps, setFps]           = useState(0);
+  const [allSettings, setAllSettings] = useState<Record<SceneId, ParticleSettings>>(
+    () => loadAllSceneSettings()
+  );
+  const [scene, setScene] = useState<SceneId>(() => loadScene());
+  const [showFps, setShowFps] = useState(false);
+  const [fps, setFps] = useState(0);
 
+  // Active settings for the current scene
+  const settings = allSettings[scene];
+
+  // Persist each scene's settings whenever they change
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
-  }, [settings]);
+    try {
+      for (const [id, s] of Object.entries(allSettings)) {
+        localStorage.setItem(SCENE_STORAGE_KEY(id), JSON.stringify(s));
+      }
+    } catch {}
+  }, [allSettings]);
 
   useEffect(() => {
     try { localStorage.setItem(SCENE_KEY, scene); } catch {}
@@ -103,58 +142,75 @@ export default function Home() {
     return () => cancelAnimationFrame(raf);
   }, [showFps]);
 
-  const sceneIds = SCENES.map(s => s.id);
+  const handleSettingsChange = useCallback((newSettings: ParticleSettings) => {
+    setAllSettings((prev: Record<SceneId, ParticleSettings>) => ({ ...prev, [scene]: newSettings }));
+  }, [scene]);
+
+  const handleCopyToAll = useCallback(() => {
+    const current = allSettings[scene];
+    setAllSettings((prev: Record<SceneId, ParticleSettings>) => {
+      const next = { ...prev };
+      for (const s of SCENES) {
+        next[s.id] = { ...prev[s.id], ...current };
+      }
+      return next;
+    });
+  }, [allSettings, scene]);
+
+  const sceneIds  = SCENES.map(s => s.id);
   const themeKeys = Object.keys(THEMES);
 
   const handleKeyboard = useCallback((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    const s = scene as SceneId;
     switch (e.key.toLowerCase()) {
-      case 'r':
-        setSettings(prev => ({ ...DEFAULTS, quality: prev.quality }));
+      case 'r': {
+        const init = (SCENE_INIT as Record<string, Partial<ParticleSettings>>)[s] || {};
+        setAllSettings((prev: Record<SceneId, ParticleSettings>) =>
+          ({ ...prev, [s]: { ...DEFAULTS, ...init, quality: prev[s].quality } } as Record<SceneId, ParticleSettings>)
+        );
         break;
-      case 't':
-        setSettings(prev => {
-          const idx  = themeKeys.indexOf(prev.theme);
-          const next = themeKeys[(idx + 1) % themeKeys.length];
-          return { ...prev, theme: next };
+      }
+      case 't': {
+        setAllSettings((prev: Record<SceneId, ParticleSettings>) => {
+          const idx = themeKeys.indexOf(prev[s].theme);
+          return { ...prev, [s]: { ...prev[s], theme: themeKeys[(idx + 1) % themeKeys.length] } } as Record<SceneId, ParticleSettings>;
         });
         break;
-      case ' ':
+      }
+      case ' ': {
         e.preventDefault();
-        setSettings(prev => ({
-          ...prev,
-          autoRotateSpeed: prev.autoRotateSpeed > 0 ? 0 : DEFAULTS.autoRotateSpeed,
-        }));
+        setAllSettings((prev: Record<SceneId, ParticleSettings>) =>
+          ({ ...prev, [s]: { ...prev[s], autoRotateSpeed: prev[s].autoRotateSpeed > 0 ? 0 : DEFAULTS.autoRotateSpeed } } as Record<SceneId, ParticleSettings>)
+        );
         break;
+      }
       case 'f':
-        setShowFps(prev => !prev);
+        setShowFps((prev: boolean) => !prev);
         break;
       case 'tab':
         e.preventDefault();
-        setScene(prev => {
+        setScene((prev: SceneId) => {
           const idx = sceneIds.indexOf(prev);
           return sceneIds[(idx + 1) % sceneIds.length];
         });
         break;
     }
-  }, [themeKeys, sceneIds]);
+  }, [scene, themeKeys, sceneIds]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyboard);
     return () => window.removeEventListener('keydown', handleKeyboard);
   }, [handleKeyboard]);
 
-  const currentScene = SCENES.find(s => s.id === scene)!;
-  const particleCount = PARTICLE_COUNTS[scene][settings.quality];
-
-  // key includes quality so the scene component remounts (and re-initialises geometry)
-  // when quality changes. Other setting changes update via uniforms without remounting.
-  const sceneKey = `${scene}-${settings.quality}`;
+  const currentScene  = SCENES.find(s => s.id === scene)!;
+  const particleCount = (PARTICLE_COUNTS as Record<string, Record<string, string>>)[scene][settings.quality];
+  const sceneKey      = getSceneKey(scene, settings);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', background: '#010108', overflow: 'hidden' }}>
 
-      {/* Active scene — key forces remount on quality change */}
+      {/* Active scene */}
       {scene === 'terrain' && <MonochromeTerrain key={sceneKey} settings={settings} />}
       {scene === 'ocean'   && <OceanMountain     key={sceneKey} settings={settings} />}
       {scene === 'ball'    && <ParticleBall       key={sceneKey} settings={settings} />}
@@ -169,7 +225,9 @@ export default function Home() {
         <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 8, lineHeight: 1.6 }}>
           {particleCount} Particles &bull; {currentScene.desc}
           <br />
-          Left Click: Rotate &bull; Right Click: Pan &bull; Scroll: Zoom
+          {scene === 'ball'
+            ? 'Click &amp; drag the ball to throw it'
+            : 'Left Click: Rotate \u2022 Right Click: Pan \u2022 Scroll: Zoom'}
         </p>
         <p style={{ color: 'rgba(255,255,255,0.1)', fontSize: 9, marginTop: 6, lineHeight: 1.5 }}>
           T: Theme &bull; R: Reset &bull; Space: Pause &bull; F: FPS &bull; Tab: Next Scene
@@ -187,7 +245,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Scene selector — bottom center; scrollable so it fits on narrow screens */}
+      {/* Scene selector — bottom center */}
       <div style={{
         position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
         zIndex: 50, maxWidth: 'calc(100vw - 32px)',
@@ -234,18 +292,37 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Settings */}
-      <SettingsPanel settings={settings} onChange={setSettings} />
+      {/* Settings — passes sceneId so panel shows scene-specific controls */}
+      <SettingsPanel
+        settings={settings}
+        onChange={handleSettingsChange}
+        sceneId={scene}
+        onCopyToAll={handleCopyToAll}
+      />
 
-      {/* Credit */}
+      {/* Credit — more prominent */}
       <div style={{ position: 'absolute', bottom: 20, left: 20, zIndex: 50 }}>
         <a
           href="https://x.com/taylor_sntx"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, textDecoration: 'none' }}
+          style={{
+            color: 'rgba(255,255,255,0.55)',
+            fontSize: 12,
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(8px)',
+            padding: '5px 10px',
+            borderRadius: 4,
+            transition: 'color 0.2s',
+          }}
         >
-          Inspired by @taylor_sntx
+          <span style={{ fontSize: 14 }}>𝕏</span>
+          <span>Inspired by <strong style={{ color: 'rgba(255,255,255,0.8)' }}>@taylor_sntx</strong></span>
         </a>
       </div>
     </div>
