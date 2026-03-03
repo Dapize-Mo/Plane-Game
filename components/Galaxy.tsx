@@ -445,7 +445,6 @@ export default function Galaxy({ settings }: Props) {
     const animate = () => {
       raf = requestAnimationFrame(animate);
       const t  = clock.getElapsedTime();
-      const dt = clock.getDelta ? 0 : 0; // getDelta handled by clock internally; use t diff below
 
       galaxyUnifs.uTime.value = t;
 
